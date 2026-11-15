@@ -13,11 +13,16 @@ enum class SensorType(
     val max: Float,
     /** Granularity of the profile editor slider. */
     val step: Float,
+    /**
+     * How far outside the ideal range a reading may be before this sensor scores 0.
+     * The score falls in a straight line from 100 at the edge of the range to 0 at this distance.
+     */
+    val tolerance: Float,
 ) {
-    TEMPERATURE("Temperature", "°C", 0f, 40f, 0.5f),
-    HUMIDITY("Humidity", "%", 0f, 100f, 1f),
-    LIGHT("Light", "lux", 0f, 1000f, 10f),
-    SOUND("Sound", "level", 0f, 100f, 1f),
+    TEMPERATURE("Temperature", "°C", 0f, 40f, 0.5f, tolerance = 5f),
+    HUMIDITY("Humidity", "%", 0f, 100f, 1f, tolerance = 20f),
+    LIGHT("Light", "lux", 0f, 1000f, 10f, tolerance = 150f),
+    SOUND("Sound", "level", 0f, 100f, 1f, tolerance = 25f),
 }
 
 /** How much a sensor counts towards the overall score. */
