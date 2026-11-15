@@ -5,30 +5,6 @@ Move an item to the plan (see the status table in the README) when we pick it up
 
 ## Requests
 
-### Make "importance" clear (raised after the interactive charts)
-The four buttons (Off / Low / Medium / High) under each sensor in the profile editor have no
-heading and no explanation, so it is not clear that they set how much the sensor counts toward the
-score. Agreed ideas, to do together (probably as part of the look refresh):
-- **Clearer button names:** Ignore / Minor / Important / Critical in place of Off / Low / Medium /
-  High. Only the shown names change: the weights stay 0 / 1 / 2 / 3 and what is stored in the
-  database (the enum names) stays the same, so existing profiles and sessions are unaffected. The
-  names also appear on the session screen ("Ideal ranges used"), in the README and in tests, and
-  must change everywhere together.
-- **A heading and a one-line explanation:** "How much does this matter?" above the buttons, and under
-  them a sentence for the selected one, for example Ignore: "Ignored. It won't affect the score."
-  Minor: "Counts a little toward the score." Important: "Counts normally." Critical: "Matters most. A
-  miss here costs the most points."
-- **A live "share of the score" figure on each card:** a sensor's weight divided by the total of all
-  sensors that count, for example "27 % of the score". It updates on every card whenever any button
-  changes (Sleep: temperature, light and sound 27 % each, humidity 18 %).
-- **A bar at the top of the editor showing the whole split:** one horizontal bar in the four sensor
-  colours (orange, blue, gold, purple) labelled with the percentages. Switching a sensor to Ignore
-  removes its segment and the others grow.
-- **A "?" icon** next to the heading that opens a short plain-language explanation with an example
-  ("For sleep, noise and light matter more than humidity, so set them to Critical").
-- **The importance on the Dashboard tiles,** as a small badge, so it is visible why a sensor is
-  dragging the score down.
-
 ### Light slider on the same five-level scale (raised while building the level picker)
 - The light slider is a straight 0–1000 lux scale, so a range like 0–50 lux (Dark to Dim) squeezes
   both thumbs against the left edge and is hard to see or drag. The light chart already gives each
@@ -48,6 +24,25 @@ score. Agreed ideas, to do together (probably as part of the look refresh):
 
 ## Done
 
+### Make "importance" clear
+- **Clearer names:** Ignore / Minor / Important / Critical replace Off / Low / Medium / High. Only the
+  shown names changed: the weights are still 0 / 1 / 2 / 3 and what is stored in the database (the
+  enum names) is unchanged, so existing profiles and sessions were not touched. A test pins this.
+- **Heading and sentence:** each sensor card has "How much does this matter?" above the buttons and
+  a sentence under them for the chosen level ("Matters most. A miss here costs the most points.").
+- **Share of the score:** each card shows its share, for example "27 % of the score", in the
+  sensor's colour. It updates on every card whenever any button changes. Shares are rounded one by
+  one, so equally important sensors always show equal shares (Sleep: 27, 18, 27, 27, which adds up
+  to 99, not 100).
+- **A split bar at the top of the editor:** one block per sensor that counts, as wide as its share,
+  in the sensor's colour, with the percentage inside and the sensor and level listed underneath. A
+  block grows or shrinks smoothly when its importance changes and disappears when set to Ignore. If
+  nothing counts, the bar says so.
+- **A "?" beside each heading** opens a short explanation of the four levels with the sleep example.
+- **A badge on each Dashboard tile**, for example "Critical · 27 %", for the profile (or running
+  session) in use. Ignored sensors have none, since the tile already says they are ignored.
+- Checked on a real phone in dark mode (the phone had switched to dark for the evening). The
+  "Important" button was first clipped to "Importa" and now fits.
 ### Interactive charts
 - **Read an exact value:** tap a chart, or drag one finger along it, and a marker (dashed line and
   dot) with a bubble shows the time and the exact value of the closest real reading. The bubble

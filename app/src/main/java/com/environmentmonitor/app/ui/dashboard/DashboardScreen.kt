@@ -17,7 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.Surface
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -47,8 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.LightLevel
+import com.environmentmonitor.app.data.Importance
 import com.environmentmonitor.app.data.Profile
 import com.environmentmonitor.app.data.RangeStatus
+import com.environmentmonitor.app.data.ScoreShares
 import com.environmentmonitor.app.data.ScoreLabel
 import com.environmentmonitor.app.data.SensorScore
 import com.environmentmonitor.app.data.SensorType
@@ -210,6 +214,7 @@ private fun SensorGrid(state: DashboardUiState) {
     val settings = state.settings
     val measurement = state.measurement
     val scores = state.score?.sensors?.associateBy { it.sensor }
+    val shares = settings?.let { ScoreShares.ofSettings(it) }.orEmpty()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SensorType.entries.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -220,6 +225,9 @@ private fun SensorGrid(state: DashboardUiState) {
                         score = scores?.get(sensor),
                         ignored = settings != null && scores != null && sensor !in scores,
                         range = settings?.get(sensor)?.let { sensor.formatRange(it.idealMin, it.idealMax) },
+                        importanceText = settings?.get(sensor)
+                            ?.takeIf { it.importance != Importance.OFF }
+                            ?.let { "${it.importance.label} · ${shares[sensor]} %" },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -235,6 +243,8 @@ private fun SensorTile(
     score: SensorScore?,
     ignored: Boolean,
     range: String?,
+    /** For example "Critical · 27 %": the sensor's importance and its share of the score. Null if ignored. */
+    importanceText: String?,
     modifier: Modifier = Modifier,
 ) {
     val color = when {
@@ -299,6 +309,21 @@ private fun SensorTile(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // How much this sensor counts in the profile in use, so it is clear why it moves the score.
+            if (importanceText != null) {
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                ) {
+                    Text(
+                        text = importanceText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                    )
+                }
+            }
         }
     }
 }

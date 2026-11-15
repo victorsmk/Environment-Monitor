@@ -124,6 +124,19 @@ object AppIcons {
         }
     }
 
+    // --- general ---
+
+    /** A question mark in a circle: "what does this mean?" */
+    val Help: ImageVector by lazy {
+        drawn("Help") {
+            circle(12f, 12f, 9f)
+            moveTo(9.4f, 9.3f)
+            arcTo(2.7f, 2.7f, 0f, true, true, 12.9f, 11.8f)
+            curveTo(12.2f, 12.2f, 12f, 12.7f, 12f, 13.6f)
+            circle(12f, 16.6f, 0.5f)
+        }
+    }
+
     // --- profiles ---
 
     /** A crescent moon (sleep). */

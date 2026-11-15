@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -61,7 +62,10 @@ import com.environmentmonitor.app.data.ProfileIcon
 import com.environmentmonitor.app.data.SensorSetting
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.ui.DiscardChangesDialog
+import com.environmentmonitor.app.data.ScoreShares
+import com.environmentmonitor.app.ui.icons.AppIcons
 import com.environmentmonitor.app.ui.icons.ProfileIconImage
+import com.environmentmonitor.app.ui.theme.color
 import com.environmentmonitor.app.ui.icons.SensorIcon
 import com.environmentmonitor.app.ui.formatRange
 import com.environmentmonitor.app.ui.rangeWords
@@ -83,6 +87,8 @@ fun ProfileEditorScreen(
     }
     // rememberSaveable: the dialog stays open when the phone is rotated.
     var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    var showHelp by rememberSaveable { mutableStateOf(false) }
+    if (showHelp) ImportanceHelpDialog(onDismiss = { showHelp = false })
     val requestBack = { if (state.hasChanges) confirmDiscard = true else onBack() }
     BackHandler(enabled = state.hasChanges) { confirmDiscard = true }
 
@@ -161,13 +167,20 @@ fun ProfileEditorScreen(
                 onSelect = viewModel::onIconChange,
             )
 
+            val importance = state.settings.mapValues { it.value.importance }
+            val shares = ScoreShares.of(importance)
+
+            ScoreSplitBar(importance)
+
             SensorType.entries.forEach { sensor ->
                 SensorSettingCard(
                     sensor = sensor,
                     setting = state.settings.getValue(sensor),
+                    share = shares[sensor],
                     enabled = !readOnly,
                     onRangeChange = { min, max -> viewModel.onRangeChange(sensor, min, max) },
                     onImportanceChange = { viewModel.onImportanceChange(sensor, it) },
+                    onHelp = { showHelp = true },
                 )
             }
 
@@ -236,9 +249,12 @@ private fun IconPicker(selected: String, enabled: Boolean, onSelect: (String) ->
 private fun SensorSettingCard(
     sensor: SensorType,
     setting: SensorSetting,
+    /** This sensor's share of the score in whole percent, or null when it is ignored. */
+    share: Int?,
     enabled: Boolean,
     onRangeChange: (Float, Float) -> Unit,
     onImportanceChange: (Importance) -> Unit,
+    onHelp: () -> Unit,
 ) {
     val active = setting.importance != Importance.OFF
 
@@ -294,6 +310,23 @@ private fun SensorSettingCard(
                 )
             }
 
+            // What the four buttons below are for, with a "?" for a fuller explanation.
+            Row(
+                modifier = Modifier.padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("How much does this matter?", style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.width(4.dp))
+                IconButton(onClick = onHelp, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = AppIcons.Help,
+                        contentDescription = "What do these levels mean?",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 Importance.entries.forEachIndexed { index, importance ->
                     SegmentedButton(
@@ -303,6 +336,8 @@ private fun SensorSettingCard(
                         enabled = enabled,
                         // Clear colours: the default selected tint is nearly invisible on the cards.
                         colors = importanceButtonColors(),
+                        // Tight padding so "Important" fits on narrower phones.
+                        contentPadding = PaddingValues(horizontal = 4.dp),
                         icon = {},
                     ) {
                         // Smaller text: "Medium" was clipped to "Mediu" on narrower phones.
@@ -313,6 +348,21 @@ private fun SensorSettingCard(
                         )
                     }
                 }
+            }
+
+            // What the chosen level means, and the share of the score that works out to.
+            Text(
+                text = setting.importance.meaning,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            if (share != null) {
+                Text(
+                    text = "$share % of the score",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = sensor.color(),
+                )
             }
         }
     }

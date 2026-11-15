@@ -25,12 +25,23 @@ enum class SensorType(
     SOUND("Sound", "level", 0f, 100f, 1f, tolerance = 25f),
 }
 
-/** How much a sensor counts towards the overall score. */
-enum class Importance(val label: String, val weight: Int) {
-    OFF("Off", 0),
-    LOW("Low", 1),
-    MEDIUM("Medium", 2),
-    HIGH("High", 3),
+/**
+ * How much a sensor counts towards the overall score.
+ *
+ * The enum names (OFF, LOW, MEDIUM, HIGH) are what is saved in the database, so they must not
+ * change. Only the [label] shown to people was renamed, to say what each level does.
+ */
+enum class Importance(
+    val label: String,
+    /** The sensor's share of the score is its weight out of the total of all sensors' weights. */
+    val weight: Int,
+    /** One sentence saying what this level means, shown under the buttons. */
+    val meaning: String,
+) {
+    OFF("Ignore", 0, "Ignored. It won't affect the score."),
+    LOW("Minor", 1, "Counts a little toward the score."),
+    MEDIUM("Important", 2, "Counts normally toward the score."),
+    HIGH("Critical", 3, "Matters most. A miss here costs the most points."),
 }
 
 /** Ideal range for one sensor, plus how much that sensor matters. */

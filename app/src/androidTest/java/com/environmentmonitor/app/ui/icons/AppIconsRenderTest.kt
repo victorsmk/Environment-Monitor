@@ -68,6 +68,9 @@ class AppIconsRenderTest {
                         }
                     }
                     FlowRow(horizontalArrangement = Arrangement.Start) {
+                        IconCell("Help", "ui-help") {
+                            Icon(AppIcons.Help, null, tint = Color.Black, modifier = Modifier.size(48.dp))
+                        }
                         ProfileIcon.entries.forEach { icon ->
                             IconCell(icon.label, "profile-${icon.name}") {
                                 Icon(icon.vector, null, tint = Color.Black, modifier = Modifier.size(48.dp))
@@ -91,7 +94,9 @@ class AppIconsRenderTest {
     @Test
     fun everyIconDrawsSomethingAndStaysInsideItsBox() {
         showAll()
-        val tags = SensorType.entries.map { "sensor-${it.name}" } + ProfileIcon.entries.map { "profile-${it.name}" }
+        val tags = SensorType.entries.map { "sensor-${it.name}" } +
+            ProfileIcon.entries.map { "profile-${it.name}" } +
+            "ui-help"
         tags.forEach { tag ->
             val bitmap = rule.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
             val share = inkShare(bitmap)

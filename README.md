@@ -23,13 +23,17 @@ foreground service.
 
 ## What the app does
 
-- **Dashboard:** live score (0–100, Good / Fair / Poor), four sensor tiles, advice naming the sensor
+- **Dashboard:** live score (0–100, Good / Fair / Poor), four sensor tiles (each with a badge such as
+  "Critical · 27 %" showing how much it counts in the profile in use), advice naming the sensor
   that costs the most points, a profile picker, and Start / Stop session.
 - **Icons:** all drawn in code in one outline style, with no emoji. Each sensor has one (thermometer,
   droplet, bulb, loudspeaker), and each profile picks one of ten (moon, laptop, dumbbell, book, game
   controller, lotus, pot, leaf, palette, headphones).
 - **Profiles:** presets (Sleep, Office, Sport) plus your own. Each profile has an ideal range and an
-  importance (Off / Low / Medium / High) per sensor, set with a slider and filled buttons. For
+  importance (Ignore / Minor / Important / Critical) per sensor, set with a slider and filled
+  buttons. Under the buttons a sentence says what the chosen level means and what share of the score
+  it works out to, a bar at the top of the editor shows the whole split in the sensor colours, and a
+  "?" explains it all with an example. For
   light there are also five chips (Dark, Dim, Soft, Bright, Very bright): tap two and the slider
   selects the range between them. Presets are read-only but can be duplicated.
 - **History:** every session with its profile, start time and duration. Open one to see its results,
@@ -67,7 +71,10 @@ foreground service.
 - Each sensor scores 100 inside its ideal range and falls in a straight line to 0 at a fixed distance
   outside it: 5 °C, 20 % humidity, 150 lux, 25 sound-level points.
 - The overall score is the weighted average of the sensors that count. Importance sets the weight:
-  Off is ignored, Low 1, Medium 2, High 3.
+  Ignore is left out, Minor counts 1, Important 2 and Critical 3. A sensor's share of the score is
+  its weight out of the total, so Sleep (three Critical, one Important) gives 27 %, 27 %, 27 % and
+  18 %. (The names were Off / Low / Medium / High earlier; only the shown names changed, not what is
+  stored.)
 - Good is 80 or more, Fair 50–79, Poor under 50.
 
 Units in the app: °C, %, lux, and a sound level from 0 to 100. Because lux means little to most
