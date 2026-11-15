@@ -8,9 +8,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -38,14 +41,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.Importance
+import com.environmentmonitor.app.data.LightLevel
 import com.environmentmonitor.app.data.SensorSetting
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.ui.DiscardChangesDialog
@@ -245,6 +251,15 @@ private fun SensorSettingCard(
                 enabled = enabled && active,
             )
 
+            // Light also has five plain-word levels: tap two to select everything between them.
+            if (sensor == SensorType.LIGHT) {
+                LightLevelPicker(
+                    setting = setting,
+                    enabled = enabled && active,
+                    onRangeChange = onRangeChange,
+                )
+            }
+
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 Importance.entries.forEachIndexed { index, importance ->
                     SegmentedButton(
@@ -252,6 +267,8 @@ private fun SensorSettingCard(
                         onClick = { onImportanceChange(importance) },
                         shape = SegmentedButtonDefaults.itemShape(index, Importance.entries.size),
                         enabled = enabled,
+                        // Clear colours: the default selected tint is nearly invisible on the cards.
+                        colors = importanceButtonColors(),
                         icon = {},
                     ) {
                         // Smaller text: "Medium" was clipped to "Mediu" on narrower phones.
@@ -265,6 +282,113 @@ private fun SensorSettingCard(
             }
         }
     }
+}
+
+/** The first tap of a level pair, and the range it produced (so a slider move can cancel it). */
+private data class PendingLevel(val level: LightLevel, val minLux: Float, val maxLux: Float)
+
+/**
+ * Dark, Dim, Soft, Bright and Very bright as tappable chips. The levels inside the current range
+ * are filled. Taps come in pairs: the first picks one level, the second stretches the range to
+ * include everything between the two, and the slider above follows (Dark then Dim gives 0–50 lux).
+ */
+@Composable
+private fun LightLevelPicker(
+    setting: SensorSetting,
+    enabled: Boolean,
+    onRangeChange: (Float, Float) -> Unit,
+) {
+    val selected = LightLevel.covering(setting.idealMin, setting.idealMax)
+    val scheme = MaterialTheme.colorScheme
+
+    // The first tap of a pair is remembered here. It only counts while the range is still the one
+    // that tap produced, so moving the slider by hand cancels it.
+    var pending by remember { mutableStateOf<PendingLevel?>(null) }
+    val anchor = pending
+        ?.takeIf { it.minLux == setting.idealMin && it.maxLux == setting.idealMax }
+        ?.level
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Every chip is as tall as the tallest ("Very bright" wraps onto two lines).
+        Row(
+            modifier = Modifier.height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            LightLevel.entries.forEach { level ->
+                val isSelected = level in selected
+                val container = when {
+                    isSelected && enabled -> scheme.primary
+                    isSelected -> scheme.primary.copy(alpha = 0.65f)
+                    else -> Color.Transparent
+                }
+                val content = when {
+                    isSelected -> scheme.onPrimary
+                    enabled -> scheme.onSurface
+                    else -> scheme.onSurface.copy(alpha = 0.5f)
+                }
+                androidx.compose.material3.Surface(
+                    onClick = {
+                        val tap = LightLevel.afterTap(anchor, level)
+                        pending = tap.anchor?.let { PendingLevel(it, tap.minLux, tap.maxLux) }
+                        onRangeChange(tap.minLux, tap.maxLux)
+                    },
+                    enabled = enabled,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                    color = container,
+                    contentColor = content,
+                    border = BorderStroke(1.dp, if (isSelected) scheme.primary else scheme.outline),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = level.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            maxLines = 2,
+                        )
+                    }
+                }
+            }
+        }
+        if (enabled) {
+            Text(
+                text = if (anchor == null) {
+                    "Tap two levels to select the range between them"
+                } else {
+                    "Now tap a second level (or the same one again)"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * The chosen importance is filled with the brand colour; the others are plain outlines. The chosen
+ * one stays clearly visible on a read-only preset too (a little softer, since it cannot be changed).
+ */
+@Composable
+private fun importanceButtonColors(): androidx.compose.material3.SegmentedButtonColors {
+    val scheme = MaterialTheme.colorScheme
+    return SegmentedButtonDefaults.colors(
+        activeContainerColor = scheme.primary,
+        activeContentColor = scheme.onPrimary,
+        activeBorderColor = scheme.primary,
+        inactiveContainerColor = Color.Transparent,
+        inactiveContentColor = scheme.onSurface,
+        inactiveBorderColor = scheme.outline,
+        disabledActiveContainerColor = scheme.primary.copy(alpha = 0.65f),
+        disabledActiveContentColor = scheme.onPrimary,
+        disabledActiveBorderColor = scheme.primary.copy(alpha = 0.65f),
+        disabledInactiveContainerColor = Color.Transparent,
+        disabledInactiveContentColor = scheme.onSurface.copy(alpha = 0.5f),
+        disabledInactiveBorderColor = scheme.outlineVariant,
+    )
 }
 
 private fun snapToStep(value: Float, sensor: SensorType): Float =

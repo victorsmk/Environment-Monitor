@@ -26,13 +26,16 @@ foreground service.
 - **Dashboard:** live score (0–100, Good / Fair / Poor), four sensor tiles, advice naming the sensor
   that costs the most points, a profile picker, and Start / Stop session.
 - **Profiles:** presets (Sleep, Office, Sport) plus your own. Each profile has an ideal range and an
-  importance (Off / Low / Medium / High) per sensor. Presets are read-only but can be duplicated.
+  importance (Off / Low / Medium / High) per sensor, set with a slider and filled buttons. For
+  light there are also five chips (Dark, Dim, Soft, Bright, Very bright): tap two and the slider
+  selects the range between them. Presets are read-only but can be duplicated.
 - **History:** every session with its profile, start time and duration. Open one to see its results,
   rename it, add notes, stop it or delete it.
 - **Session results:** the average score with a one-line verdict (for example "Light cost the most
   points, mostly too high"), the share of time each sensor spent in range, a chart of the score over
   time with the Good / Fair / Poor zones shaded, and one chart per sensor with the ideal range
-  shaded. Each sensor has its own colour (temperature orange, humidity blue, light gold, sound
+  shaded. Both axes show several round values and clock times, and the light chart is split into
+  the five light levels. Each sensor has its own colour (temperature orange, humidity blue, light gold, sound
   purple), also used for the dot next to its name on the Dashboard. Charts are drawn by hand on a
   Compose Canvas, with no chart library. They update live while a session runs and need at least
   two readings (about 20 seconds).

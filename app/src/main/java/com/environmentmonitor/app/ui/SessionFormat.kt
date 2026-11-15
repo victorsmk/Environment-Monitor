@@ -27,6 +27,17 @@ private val timeFormat: DateTimeFormatter = DateTimeFormatter.ofLocalizedTime(Fo
 fun formatTime(epochMillis: Long, zone: ZoneId = ZoneId.systemDefault()): String =
     timeFormat.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
 
+private val timeWithSecondsFormat: DateTimeFormatter =
+    DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
+
+/** A chart time label: with seconds when the labels are less than a minute apart. */
+fun formatTimeTick(epochMillis: Long, stepMillis: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    if (stepMillis < 60_000L) {
+        timeWithSecondsFormat.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
+    } else {
+        formatTime(epochMillis, zone)
+    }
+
 /** A start time in the phone's locale and time zone, e.g. "Nov 15, 2026, 9:30 PM". */
 fun formatDateTime(epochMillis: Long, zone: ZoneId = ZoneId.systemDefault()): String =
     dateTimeFormat.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
