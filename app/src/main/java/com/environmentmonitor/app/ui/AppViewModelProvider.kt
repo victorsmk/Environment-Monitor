@@ -45,6 +45,7 @@ object AppViewModelProvider {
             val handle: SavedStateHandle = createSavedStateHandle()
             SessionDetailViewModel(
                 repository = app().container.sessionRepository,
+                readings = app().container.readingRepository,
                 sessionId = handle.get<Long>(SESSION_ID_ARG) ?: -1L,
             )
         }

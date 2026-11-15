@@ -13,8 +13,8 @@ live readings.
 | 3 | Sessions CRUD | done (tag `lab-crud`) |
 | 4 | Scoring engine | done |
 | 5 | Mock sensors and live Dashboard | done |
-| 6 | Recording readings during a session | next |
-| 7 | Session charts | planned |
+| 6 | Recording readings during a session | done |
+| 7 | Session charts | next |
 | 8 | Settings and polish | planned |
 
 Later phases: **2** connect the real Pico W over Wi-Fi, **3** record in the background with a
@@ -27,7 +27,10 @@ foreground service.
 - **Profiles:** presets (Sleep, Office, Sport) plus your own. Each profile has an ideal range and an
   importance (Off / Low / Medium / High) per sensor. Presets are read-only but can be duplicated.
 - **History:** every session with its profile, start time and duration. Open one to rename it, add
-  notes, stop it or delete it.
+  notes, stop it or delete it. The session screen also shows how many readings were recorded.
+- **Recording:** while a session runs, a reading (temperature, humidity, light, sound) is stored every
+  10 seconds, starting the moment the session starts. Recording belongs to the app, not to a screen,
+  so it carries on when you switch tabs. Deleting a session deletes its readings.
 
 ### How the score works
 
@@ -58,7 +61,7 @@ Versions are in [`gradle/libs.versions.toml`](gradle/libs.versions.toml):
 - Jetpack Compose (BOM 2026.02.01) with Material 3
 - Navigation Compose 2.10.2, Lifecycle 2.11.0, Activity Compose 1.13.0
 - Room 2.8.5 for the local SQLite database
-- JUnit 4.13.2, AndroidX Test 1.7.0 and ext-junit 1.3.0 for tests
+- JUnit 4.13.2, kotlinx-coroutines-test 1.10.2, AndroidX Test 1.7.0 and ext-junit 1.3.0 for tests
 
 There is no cloud service, account or API key. All data stays on the phone.
 
@@ -130,8 +133,10 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 .\gradlew.bat connectedDebugAndroidTest  # database tests, needs an emulator or phone
 ```
 
-Unit tests cover the scoring engine, the mock sensor model, validation and formatting. The
-instrumented tests run create / read / update / delete against a real in-memory Room database.
+Unit tests cover the scoring engine, the mock sensor model, the recorder (on virtual time, so a
+"10 second" interval takes no real time), validation and formatting. The
+instrumented tests run create / read / update / delete against a real in-memory Room database,
+including readings and the cascade delete from sessions.
 HTML reports are written to `app/build/reports/`.
 
 Note: `connectedDebugAndroidTest` uninstalls the app when it finishes. Run `installDebug` again
@@ -149,7 +154,7 @@ a change takes about 20 seconds to settle.
 ```
 app/src/main/java/com/environmentmonitor/app/
   data/        Room entities, DAOs, repositories, scoring engine, validation
-  sensors/     SensorSource interface and the mock implementation
+  sensors/     SensorSource interface, the mock implementation, and the SessionRecorder
   ui/          Compose screens: dashboard/, profiles/, history/, theme/, navigation
   AppContainer.kt   hand-wired dependencies (no DI framework)
   AppSettings.kt    small preferences (selected profile, demo scenario)
@@ -174,7 +179,8 @@ git checkout main            # back to the latest
 
 - While the app is in development, the database is wiped whenever its schema changes
   (`fallbackToDestructiveMigration` in `AppContainer.kt`). Remove that before a real release.
-- Nothing records in the background yet; readings are not stored until step 6.
+- Recording only works while the app process is alive. If Android closes the app, recording pauses
+  until it is opened again (background recording is phase 3).
 - Going back from an editor screen discards unsaved edits without asking.
 - Only tested on an Android 17 emulator so far.
 

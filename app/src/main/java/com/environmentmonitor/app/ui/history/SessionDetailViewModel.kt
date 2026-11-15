@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.environmentmonitor.app.data.ReadingRepository
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.data.SessionRepository
 import com.environmentmonitor.app.data.SessionValidator
@@ -15,8 +16,13 @@ import kotlinx.coroutines.launch
 
 class SessionDetailViewModel(
     private val repository: SessionRepository,
+    readings: ReadingRepository,
     private val sessionId: Long,
 ) : ViewModel() {
+
+    /** How many readings the session has stored so far. */
+    val readingCount: StateFlow<Int> = readings.observeCount(sessionId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     /** The stored session; changes while it runs or after an edit. Null if it does not exist. */
     val session: StateFlow<Session?> = repository.observe(sessionId)

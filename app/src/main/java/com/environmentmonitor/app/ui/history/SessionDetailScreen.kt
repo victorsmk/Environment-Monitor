@@ -49,6 +49,7 @@ fun SessionDetailScreen(
     onBack: () -> Unit,
 ) {
     val session by viewModel.session.collectAsStateWithLifecycle()
+    val readingCount by viewModel.readingCount.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -112,7 +113,7 @@ fun SessionDetailScreen(
                 maxLines = 6,
                 modifier = Modifier.fillMaxWidth(),
             )
-            SessionInfoCard(current)
+            SessionInfoCard(current, readingCount)
             if (current.isActive) {
                 Button(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth()) {
                     Text("Stop session")
@@ -141,7 +142,7 @@ fun SessionDetailScreen(
 }
 
 @Composable
-private fun SessionInfoCard(session: Session) {
+private fun SessionInfoCard(session: Session, readingCount: Int) {
     // A running session shows a duration that keeps counting.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     if (session.isActive) {
@@ -165,6 +166,7 @@ private fun SessionInfoCard(session: Session) {
                 session.endedAt?.let { formatDateTime(it) } ?: "Still recording",
             )
             InfoRow("Duration", formatDuration(session.durationMillis(now)))
+            InfoRow("Readings recorded", readingCount.toString())
             Text(
                 text = "Ideal ranges used",
                 style = MaterialTheme.typography.labelLarge,

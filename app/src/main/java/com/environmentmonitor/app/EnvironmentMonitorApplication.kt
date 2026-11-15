@@ -17,5 +17,6 @@ class EnvironmentMonitorApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         applicationScope.launch { container.profileRepository.seedPresetsIfNeeded() }
+        container.sessionRecorder.start()
     }
 }
