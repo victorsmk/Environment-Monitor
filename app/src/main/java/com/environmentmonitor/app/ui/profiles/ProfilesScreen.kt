@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -44,7 +45,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.environmentmonitor.app.data.Importance
 import com.environmentmonitor.app.data.Profile
+import com.environmentmonitor.app.data.SensorType
+import com.environmentmonitor.app.ui.icons.SensorIcon
 import com.environmentmonitor.app.ui.icons.ProfileAvatar
 import com.environmentmonitor.app.ui.summary
 
@@ -103,6 +107,7 @@ fun ProfilesScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun ProfileCard(
     profile: Profile,
@@ -112,7 +117,7 @@ private fun ProfileCard(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
         Row(
             modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -145,6 +150,35 @@ private fun ProfileCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Which sensors this profile counts, each with how much.
+                FlowRow(
+                    modifier = Modifier.padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    SensorType.entries.forEach { sensor ->
+                        val importance = profile.setting(sensor).importance
+                        if (importance != Importance.OFF) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    SensorIcon(sensor, size = 14.dp)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = importance.label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {

@@ -1,4 +1,4 @@
-﻿package com.environmentmonitor.app.ui.history
+package com.environmentmonitor.app.ui.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -68,7 +68,7 @@ fun HistoryScreen(
         if (sessions.isEmpty()) {
             Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "No sessions yet.\nStart one from the Dashboard.",
+                    text = "Nothing recorded yet.\nStart a session from the Dashboard and it will show up here.",
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -124,7 +124,7 @@ private fun SessionCard(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
         Row(
             modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
