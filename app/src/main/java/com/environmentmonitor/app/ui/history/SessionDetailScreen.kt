@@ -1,5 +1,6 @@
 package com.environmentmonitor.app.ui.history
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -36,10 +38,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.Importance
+import com.environmentmonitor.app.data.RecordingInterval
 import com.environmentmonitor.app.data.SensorStats
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.data.SessionAnalysis
+import com.environmentmonitor.app.ui.DiscardChangesDialog
 import com.environmentmonitor.app.ui.charts.ScoreChart
 import com.environmentmonitor.app.ui.charts.SensorChart
 import com.environmentmonitor.app.ui.formatDateTime
@@ -59,7 +63,11 @@ fun SessionDetailScreen(
     val session by viewModel.session.collectAsStateWithLifecycle()
     val readingCount by viewModel.readingCount.collectAsStateWithLifecycle()
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
-    var confirmDelete by remember { mutableStateOf(false) }
+    // rememberSaveable: the dialogs stay open when the phone is rotated.
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    val requestBack = { if (viewModel.hasChanges) confirmDiscard = true else onBack() }
+    BackHandler(enabled = viewModel.hasChanges) { confirmDiscard = true }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
@@ -67,7 +75,7 @@ fun SessionDetailScreen(
             TopAppBar(
                 title = { Text("Session") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = requestBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -137,6 +145,16 @@ fun SessionDetailScreen(
         }
     }
 
+    if (confirmDiscard) {
+        DiscardChangesDialog(
+            onDiscard = {
+                confirmDiscard = false
+                onBack()
+            },
+            onKeepEditing = { confirmDiscard = false },
+        )
+    }
+
     if (confirmDelete) {
         session?.let { current ->
             DeleteSessionDialog(
@@ -179,7 +197,8 @@ private fun ResultsSection(session: Session, analysis: SessionAnalysis?) {
     val last = analysis.scorePoints.last().timestamp
     if (analysis.readingCount < 2) {
         Text(
-            text = "Charts appear once there are two readings (one is stored every 10 seconds).",
+            text = "Charts appear once there are two readings " +
+                "(one is stored ${RecordingInterval.describe(session.recordingIntervalSeconds)}).",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -297,6 +316,11 @@ private fun SessionInfoCard(session: Session, readingCount: Int) {
                 session.endedAt?.let { formatDateTime(it) } ?: "Still recording",
             )
             InfoRow("Duration", formatDuration(session.durationMillis(now)))
+            InfoRow(
+                "Recording",
+                RecordingInterval.describe(session.recordingIntervalSeconds)
+                    .replaceFirstChar { it.uppercase() },
+            )
             InfoRow("Readings recorded", readingCount.toString())
             Text(
                 text = "Ideal ranges used",

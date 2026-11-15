@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +55,9 @@ fun ProfilesScreen(
     onNewProfile: () -> Unit,
 ) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
-    var pendingDelete by remember { mutableStateOf<Profile?>(null) }
+    // Kept as an id and saved, so the dialog survives rotating the phone.
+    var pendingDeleteId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val pendingDelete = profiles.firstOrNull { it.id == pendingDeleteId }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
@@ -75,7 +78,7 @@ fun ProfilesScreen(
                     profile = profile,
                     onClick = { onOpenProfile(profile.id) },
                     onDuplicate = { viewModel.duplicate(profile, onOpenProfile) },
-                    onDelete = { pendingDelete = profile },
+                    onDelete = { pendingDeleteId = profile.id },
                 )
             }
         }
@@ -83,17 +86,17 @@ fun ProfilesScreen(
 
     pendingDelete?.let { profile ->
         AlertDialog(
-            onDismissRequest = { pendingDelete = null },
+            onDismissRequest = { pendingDeleteId = null },
             title = { Text("Delete profile?") },
             text = { Text("“${profile.name}” will be removed. This cannot be undone.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.delete(profile)
-                    pendingDelete = null
+                    pendingDeleteId = null
                 }) { Text("Delete") }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { pendingDeleteId = null }) { Text("Cancel") }
             },
         )
     }

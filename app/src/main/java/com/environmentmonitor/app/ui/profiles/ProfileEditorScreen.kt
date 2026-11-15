@@ -1,5 +1,6 @@
 package com.environmentmonitor.app.ui.profiles
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +37,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -44,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.Importance
 import com.environmentmonitor.app.data.SensorSetting
 import com.environmentmonitor.app.data.SensorType
+import com.environmentmonitor.app.ui.DiscardChangesDialog
 import com.environmentmonitor.app.ui.ProfileIcons
 import com.environmentmonitor.app.ui.formatRange
 import kotlin.math.roundToInt
@@ -62,13 +67,27 @@ fun ProfileEditorScreen(
         readOnly -> "Preset profile"
         else -> "Edit profile"
     }
+    // rememberSaveable: the dialog stays open when the phone is rotated.
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    val requestBack = { if (state.hasChanges) confirmDiscard = true else onBack() }
+    BackHandler(enabled = state.hasChanges) { confirmDiscard = true }
+
+    if (confirmDiscard) {
+        DiscardChangesDialog(
+            onDiscard = {
+                confirmDiscard = false
+                onBack()
+            },
+            onKeepEditing = { confirmDiscard = false },
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = requestBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },

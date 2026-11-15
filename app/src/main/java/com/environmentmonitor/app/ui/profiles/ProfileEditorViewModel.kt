@@ -27,6 +27,20 @@ data class EditorUiState(
     val settings: Map<SensorType, SensorSetting> = defaultSettings(),
     val nameError: String? = null,
     val settingsError: String? = null,
+    /** What the form held when it opened, to tell whether the user changed anything. */
+    val baseline: EditorSnapshot = EditorSnapshot(),
+) {
+    val hasChanges: Boolean
+        get() = !isLoading && !isPreset && snapshot() != baseline
+
+    fun snapshot() = EditorSnapshot(name.trim(), icon, settings)
+}
+
+/** The editable parts of a profile form. */
+data class EditorSnapshot(
+    val name: String = "",
+    val icon: String = ProfileIcons.first(),
+    val settings: Map<SensorType, SensorSetting> = defaultSettings(),
 )
 
 private fun defaultSettings(): Map<SensorType, SensorSetting> = mapOf(
@@ -60,6 +74,7 @@ class ProfileEditorViewModel(
                         name = profile.name,
                         icon = profile.icon,
                         settings = profile.settings(),
+                        baseline = EditorSnapshot(profile.name.trim(), profile.icon, profile.settings()),
                     )
                 }
             }

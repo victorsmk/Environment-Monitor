@@ -1,6 +1,7 @@
 package com.environmentmonitor.app
 
 import android.content.Context
+import com.environmentmonitor.app.data.RecordingInterval
 import com.environmentmonitor.app.sensors.MockScenario
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +36,21 @@ class AppSettings(context: Context) {
         _mockScenario.value = scenario
     }
 
+    private val _recordingInterval = MutableStateFlow(
+        runCatching { RecordingInterval.valueOf(prefs.getString(KEY_INTERVAL, null) ?: "") }
+            .getOrDefault(RecordingInterval.DEFAULT),
+    )
+
+    /** How often new sessions store a reading. Running sessions keep the value they started with. */
+    val recordingInterval: StateFlow<RecordingInterval> = _recordingInterval
+
+    fun setRecordingInterval(interval: RecordingInterval) {
+        prefs.edit().putString(KEY_INTERVAL, interval.name).apply()
+        _recordingInterval.value = interval
+    }
+
     private companion object {
+        const val KEY_INTERVAL = "recording_interval"
         const val KEY_PROFILE = "selected_profile_id"
         const val KEY_SCENARIO = "mock_scenario"
         const val NONE = -1L

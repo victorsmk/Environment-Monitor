@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +56,9 @@ fun HistoryScreen(
     onOpenSession: (Long) -> Unit,
 ) {
     val sessions by viewModel.allSessions.collectAsStateWithLifecycle()
-    var pendingDelete by remember { mutableStateOf<Session?>(null) }
+    // Kept as an id and saved, so the dialog survives rotating the phone.
+    var pendingDeleteId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val pendingDelete = sessions.firstOrNull { it.id == pendingDeleteId }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
@@ -81,7 +84,7 @@ fun HistoryScreen(
                         session = session,
                         onClick = { onOpenSession(session.id) },
                         onStop = { viewModel.stop(session) },
-                        onDelete = { pendingDelete = session },
+                        onDelete = { pendingDeleteId = session.id },
                     )
                 }
             }
@@ -93,9 +96,9 @@ fun HistoryScreen(
             session = session,
             onConfirm = {
                 viewModel.delete(session)
-                pendingDelete = null
+                pendingDeleteId = null
             },
-            onDismiss = { pendingDelete = null },
+            onDismiss = { pendingDeleteId = null },
         )
     }
 }

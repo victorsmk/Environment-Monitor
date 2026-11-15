@@ -21,12 +21,17 @@ class SessionRepository(
     /**
      * Starts a session for [profile] and returns its id, or null when another session is already
      * running (there is only one device, so only one session records at a time).
-     * A blank [name] falls back to "<profile> session".
+     * A blank [name] falls back to "<profile> session". The session keeps [interval] for its whole
+     * life, whatever the setting is later.
      */
-    suspend fun start(profile: Profile, name: String): Long? {
+    suspend fun start(
+        profile: Profile,
+        name: String,
+        interval: RecordingInterval = RecordingInterval.DEFAULT,
+    ): Long? {
         if (dao.activeCount() > 0) return null
         val finalName = name.trim().ifEmpty { "${profile.name} session" }.take(MAX_NAME_LENGTH)
-        return dao.insert(Session.startedWith(profile, finalName, clock()))
+        return dao.insert(Session.startedWith(profile, finalName, clock(), interval))
     }
 
     /** Ends a running session. Returns false when it does not exist or already ended. */

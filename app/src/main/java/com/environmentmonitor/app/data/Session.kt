@@ -25,6 +25,11 @@ data class Session(
     @Embedded(prefix = "humidity_") val humidity: SensorSetting,
     @Embedded(prefix = "light_") val light: SensorSetting,
     @Embedded(prefix = "sound_") val sound: SensorSetting,
+    /**
+     * How often readings are stored for this session, fixed when it starts. Changing the setting
+     * later does not affect a session that already exists, so its statistics stay consistent.
+     */
+    val recordingIntervalSeconds: Int = RecordingInterval.DEFAULT.seconds,
 ) {
     val isActive: Boolean get() = endedAt == null
 
@@ -43,9 +48,15 @@ data class Session(
 
     companion object {
         /** A new running session that carries a snapshot of [profile]. */
-        fun startedWith(profile: Profile, name: String, now: Long) = Session(
+        fun startedWith(
+            profile: Profile,
+            name: String,
+            now: Long,
+            interval: RecordingInterval = RecordingInterval.DEFAULT,
+        ) = Session(
             name = name,
             startedAt = now,
+            recordingIntervalSeconds = interval.seconds,
             profileName = profile.name,
             profileIcon = profile.icon,
             temperature = profile.temperature,

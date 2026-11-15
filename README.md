@@ -4,7 +4,8 @@ An Android app that rates how good a room is for what you plan to do in it (slee
 sport, ...). A Raspberry Pi Pico W with temperature, humidity, light and sound sensors will feed it
 live readings.
 
-**Status:** phase 1 (the app, running on mock sensor values) is in progress.
+**Status:** phase 1 (the app, running on mock sensor values) is complete. Open ideas and questions
+are in [BACKLOG.md](BACKLOG.md).
 
 | Step | What | State |
 |---|---|---|
@@ -15,7 +16,7 @@ live readings.
 | 5 | Mock sensors and live Dashboard | done |
 | 6 | Recording readings during a session | done |
 | 7 | Session results and charts | done |
-| 8 | Settings and polish | planned |
+| 8 | Settings (how often to record, demo data) and polish | done |
 
 Later phases: **2** connect the real Pico W over Wi-Fi, **3** record in the background with a
 foreground service.
@@ -33,9 +34,19 @@ foreground service.
   time with the Good / Fair / Poor zones shaded, and one chart per sensor with the ideal range
   shaded. Charts are drawn by hand on a Compose Canvas, with no chart library. They update live
   while a session runs and need at least two readings (about 20 seconds).
-- **Recording:** while a session runs, a reading (temperature, humidity, light, sound) is stored every
-  10 seconds, starting the moment the session starts. Recording belongs to the app, not to a screen,
-  so it carries on when you switch tabs. Deleting a session deletes its readings.
+- **Recording:** while a session runs, a reading (temperature, humidity, light, sound) is stored at the
+  chosen interval, starting the moment the session starts. Recording belongs to the app, not to a
+  screen, so it carries on when you switch tabs. Deleting a session deletes its readings.
+- **Settings:**
+  - *Recording interval:* every second, 5 seconds, 10 seconds (default), 30 seconds, minute or
+    5 minutes. Each option shows roughly how many readings an 8 hour night would store. A change
+    applies to the next session. A session keeps the interval it started with, so its statistics
+    stay consistent.
+  - *Demo data:* which pretend room the mock sensors are in (Comfortable bedroom, Quiet office, Noisy
+    room, Hot and bright, or Changing). A short interval plus "Changing" is a quick way to fill the
+    charts for a demo.
+- **Editing safety:** leaving a profile or session screen with unsaved changes asks before discarding
+  them, and open dialogs survive rotating the phone.
 
 ### How the score works
 
@@ -150,8 +161,8 @@ afterwards.
 
 ## Using the mock sensors
 
-Until the real device is connected, readings come from a simulator. On the Dashboard, the **Demo data**
-picker at the bottom chooses the pretend room: *Comfortable bedroom*, *Quiet office*, *Noisy room*,
+Until the real device is connected, readings come from a simulator. In **Settings → Demo data**,
+you can choose the pretend room: *Comfortable bedroom*, *Quiet office*, *Noisy room*,
 *Hot and bright*, or *Changing* (cycles through all four). Values glide towards the room's target, so
 a change takes about 20 seconds to settle.
 
@@ -161,9 +172,9 @@ a change takes about 20 seconds to settle.
 app/src/main/java/com/environmentmonitor/app/
   data/        Room entities, DAOs, repositories, scoring engine, validation
   sensors/     SensorSource interface, the mock implementation, and the SessionRecorder
-  ui/          Compose screens: dashboard/, profiles/, history/, charts/, theme/, navigation
+  ui/          Compose screens: dashboard/, profiles/, history/, settings/, charts/, theme/, navigation
   AppContainer.kt   hand-wired dependencies (no DI framework)
-  AppSettings.kt    small preferences (selected profile, demo scenario)
+  AppSettings.kt    small preferences (selected profile, recording interval, demo scenario)
 app/src/test/          unit tests
 app/src/androidTest/   database tests
 ```
@@ -187,8 +198,10 @@ git checkout main            # back to the latest
   (`fallbackToDestructiveMigration` in `AppContainer.kt`). Remove that before a real release.
 - Recording only works while the app process is alive. If Android closes the app, recording pauses
   until it is opened again (background recording is phase 3).
-- Going back from an editor screen discards unsaved edits without asking.
-- Only tested on an Android 17 emulator so far.
+- The mock sensors produce one new value per second, so recording every second can occasionally store
+  the same value twice. A real device will not have this limit.
+- Tested on an Android 17 emulator and on a Samsung Galaxy A54 (Android 16). Other devices have not
+  been tried.
 
 ## Troubleshooting
 

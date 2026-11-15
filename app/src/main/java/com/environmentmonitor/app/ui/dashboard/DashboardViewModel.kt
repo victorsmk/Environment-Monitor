@@ -12,7 +12,6 @@ import com.environmentmonitor.app.data.SensorSetting
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.data.SessionRepository
-import com.environmentmonitor.app.sensors.MockScenario
 import com.environmentmonitor.app.sensors.SensorSource
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +30,6 @@ data class DashboardUiState(
     val activeSession: Session? = null,
     val measurement: Measurement? = null,
     val score: EnvironmentScore? = null,
-    val scenario: MockScenario = MockScenario.COMFORTABLE_BEDROOM,
 ) {
     /** The ideal ranges in use: the session's snapshot while recording, else the picked profile. */
     val settings: Map<SensorType, SensorSetting>?
@@ -56,8 +54,7 @@ class DashboardViewModel(
         settings.selectedProfileId,
         sessions.activeSession,
         sensors.measurements.map<Measurement, Measurement?> { it }.onStart { emit(null) },
-        settings.mockScenario,
-    ) { allProfiles, selectedId, active, measurement, scenario ->
+    ) { allProfiles, selectedId, active, measurement ->
         val selected = allProfiles.firstOrNull { it.id == selectedId } ?: allProfiles.firstOrNull()
         val judgedBy = active?.settings() ?: selected?.settings()
         DashboardUiState(
@@ -70,17 +67,17 @@ class DashboardViewModel(
             } else {
                 null
             },
-            scenario = scenario,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 
     fun selectProfile(profile: Profile) = settings.selectProfile(profile.id)
 
-    fun setScenario(scenario: MockScenario) = settings.setMockScenario(scenario)
-
     fun startSession() {
         val profile = uiState.value.selectedProfile ?: return
-        viewModelScope.launch { sessions.start(profile, name = "") }
+        // The interval is read now and kept by the session, so later changes in Settings
+        // do not affect it.
+        val interval = settings.recordingInterval.value
+        viewModelScope.launch { sessions.start(profile, name = "", interval = interval) }
     }
 
     fun stopSession() {

@@ -51,6 +51,15 @@ class SessionRepositoryTest {
     }
 
     @Test
+    fun theSessionKeepsTheRecordingIntervalItStartedWith() = runBlocking {
+        val id = sessions.start(sleep, "A", RecordingInterval.EVERY_5_MINUTES)!!
+        assertEquals(300, sessions.get(id)!!.recordingIntervalSeconds)
+        sessions.stop(id)
+        val other = sessions.start(sleep, "B")!!
+        assertEquals(10, sessions.get(other)!!.recordingIntervalSeconds)
+    }
+
+    @Test
     fun aBlankNameFallsBackToTheProfileName() = runBlocking {
         val id = sessions.start(sleep, "   ")!!
         assertEquals("Sleep session", sessions.get(id)!!.name)

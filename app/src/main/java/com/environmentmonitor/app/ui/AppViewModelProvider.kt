@@ -13,6 +13,7 @@ import com.environmentmonitor.app.ui.history.SessionDetailViewModel
 import com.environmentmonitor.app.ui.profiles.NEW_PROFILE_ID
 import com.environmentmonitor.app.ui.profiles.ProfileEditorViewModel
 import com.environmentmonitor.app.ui.profiles.ProfilesViewModel
+import com.environmentmonitor.app.ui.settings.SettingsViewModel
 
 const val PROFILE_ID_ARG = "profileId"
 const val SESSION_ID_ARG = "sessionId"
@@ -32,6 +33,9 @@ object AppViewModelProvider {
         }
         initializer {
             HistoryViewModel(sessions = app().container.sessionRepository)
+        }
+        initializer {
+            SettingsViewModel(app().container.settings)
         }
         initializer {
             DashboardViewModel(

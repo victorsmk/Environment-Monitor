@@ -6,6 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
@@ -33,12 +34,17 @@ class SessionRecorderTest {
     private fun TestScope.recorder(
         sensors: SensorSource,
         active: Flow<Long?>,
+        intervalMillis: Long = 10_000,
+    ) = recorderFor(sensors, active.map { id -> id?.let { RecordingTarget(it, intervalMillis) } })
+
+    private fun TestScope.recorderFor(
+        sensors: SensorSource,
+        target: Flow<RecordingTarget?>,
     ) = SessionRecorder(
         scope = backgroundScope,
         sensors = sensors,
-        activeSessionId = active,
+        activeTarget = target,
         sink = sink,
-        intervalMillis = 10_000,
         clock = { currentTime },
     ).also { it.start() }
 
@@ -120,6 +126,40 @@ class SessionRecorderTest {
         runCurrent()
         assertEquals(1, saved.size)
         assertEquals(30_000L, saved.single().at)
+    }
+
+    @Test
+    fun `a short interval records more often`() = runTest {
+        val sensors = FakeSensors().also { it.flow.tryEmit(reading(20f)) }
+        recorder(sensors, MutableStateFlow(1L), intervalMillis = 1_000)
+        advanceTimeBy(3_500)
+        assertEquals(listOf(0L, 1_000L, 2_000L, 3_000L), saved.map { it.at })
+    }
+
+    @Test
+    fun `a long interval records rarely`() = runTest {
+        val sensors = FakeSensors().also { it.flow.tryEmit(reading(20f)) }
+        recorder(sensors, MutableStateFlow(1L), intervalMillis = 300_000)
+        advanceTimeBy(650_000)
+        assertEquals(listOf(0L, 300_000L, 600_000L), saved.map { it.at })
+    }
+
+    @Test
+    fun `each session records at its own interval`() = runTest {
+        val sensors = FakeSensors().also { it.flow.tryEmit(reading(20f)) }
+        val target = MutableStateFlow<RecordingTarget?>(RecordingTarget(1L, 10_000))
+        recorderFor(sensors, target)
+        advanceTimeBy(15_000)
+        assertEquals(listOf(0L, 10_000L), saved.map { it.at })
+
+        target.value = null
+        advanceTimeBy(5_000)
+        target.value = RecordingTarget(2L, 60_000)
+        runCurrent()
+        advanceTimeBy(130_000)
+
+        val second = saved.filter { it.sessionId == 2L }.map { it.at }
+        assertEquals(listOf(20_000L, 80_000L, 140_000L), second)
     }
 
     @Test

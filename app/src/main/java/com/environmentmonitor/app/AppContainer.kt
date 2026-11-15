@@ -7,6 +7,7 @@ import com.environmentmonitor.app.data.ProfileRepository
 import com.environmentmonitor.app.data.ReadingRepository
 import com.environmentmonitor.app.data.SessionRepository
 import com.environmentmonitor.app.sensors.MockSensorSource
+import com.environmentmonitor.app.sensors.RecordingTarget
 import com.environmentmonitor.app.sensors.SensorSource
 import com.environmentmonitor.app.sensors.SessionRecorder
 import kotlinx.coroutines.CoroutineScope
@@ -35,11 +36,13 @@ class AppContainer(context: Context) {
     /** Fake sensors for now; the Pico W source replaces this in phase 2. */
     val sensorSource: SensorSource = MockSensorSource(appScope, settings.mockScenario)
 
-    /** Stores a reading every 10 seconds while a session is running. */
+    /** Stores readings at each running session's own interval. */
     val sessionRecorder: SessionRecorder = SessionRecorder(
         scope = appScope,
         sensors = sensorSource,
-        activeSessionId = sessionRepository.activeSession.map { it?.id },
+        activeTarget = sessionRepository.activeSession.map { session ->
+            session?.let { RecordingTarget(it.id, it.recordingIntervalSeconds * 1_000L) }
+        },
         sink = readingRepository,
     )
 }

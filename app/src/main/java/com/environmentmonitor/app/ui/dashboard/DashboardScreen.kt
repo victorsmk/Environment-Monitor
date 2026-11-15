@@ -51,7 +51,6 @@ import com.environmentmonitor.app.data.ScoreLabel
 import com.environmentmonitor.app.data.SensorScore
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
-import com.environmentmonitor.app.sensors.MockScenario
 import com.environmentmonitor.app.ui.advice
 import com.environmentmonitor.app.ui.scoreColor
 import com.environmentmonitor.app.ui.formatDateTime
@@ -92,7 +91,6 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                 onStart = viewModel::startSession,
                 onStop = viewModel::stopSession,
             )
-            DemoDataPicker(state.scenario, viewModel::setScenario)
         }
     }
 }
@@ -325,40 +323,6 @@ private fun SessionControl(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Stop session") }
-        }
-    }
-}
-
-/** Phase 1 only: pick the pretend room. Moves to Settings in step 8. */
-@Composable
-private fun DemoDataPicker(current: MockScenario, onSelect: (MockScenario) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = "Demo data",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-        )
-        Box {
-            TextButton(onClick = { open = true }) {
-                Text(current.label)
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-            }
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                MockScenario.entries.forEach { scenario ->
-                    DropdownMenuItem(
-                        text = { Text(scenario.label) },
-                        onClick = {
-                            open = false
-                            onSelect(scenario)
-                        },
-                    )
-                }
-            }
         }
     }
 }
