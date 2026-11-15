@@ -67,9 +67,18 @@ Move an item to the plan (see the status table in the README) when we pick it up
   cancels a half-finished pair.
 
 ### More readable charts
-- Both axes now carry several labelled lines instead of only the lowest and highest value: round
-  values on the vertical axis (for example 16, 17, 18, 19 °C) and round clock times on the horizontal
-  one (whole seconds, minutes or hours of the phone's local clock, depending on how long the session
-  is). The score chart names its Good, Fair and Poor zones.
+- Both axes now carry several labelled lines instead of only the lowest and highest value, and the
+  round clock times on the horizontal axis are whole seconds, minutes or hours of the phone's local
+  clock, depending on how long the session is.
+- On the vertical axis:
+  - **Temperature:** labels every half degree for a narrow range, widening to every 1, 2, 5 or 10
+    degrees as the readings vary more (at most 8 labels), with alternating stripes between them
+    like the light chart.
+  - **Humidity:** always multiples of 5 (widening to 10, 20 or 25 when the range is big), also
+    striped.
+  - **Score:** lines at 0, 10, 30, 50, 65, 80 and 100, with the Good, Fair and Poor zones shaded and
+    named at the top of each zone.
+  - **Sound:** a lighter set of round labels, unchanged.
+  - **Light:** the five named levels, unchanged.
 - The light chart splits its height into the five light levels, each named, so it reads like the
   level picker. Each level has the same height, so Dark and Dim are not squeezed into slivers.

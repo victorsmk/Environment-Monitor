@@ -47,7 +47,14 @@ import java.time.ZoneId
  * A shaded horizontal stripe behind the line, from value [from] up to [to]. A [label] is written
  * inside it at the right edge (the light levels, or Good / Fair / Poor on the score chart).
  */
-data class ChartBand(val from: Float, val to: Float, val color: Color, val label: String? = null)
+data class ChartBand(
+    val from: Float,
+    val to: Float,
+    val color: Color,
+    val label: String? = null,
+    /** Write the label just under the top edge instead of in the middle (keeps it clear of a line in the middle). */
+    val labelAtTop: Boolean = false,
+)
 
 private const val MAX_DRAWN_POINTS = 400
 
@@ -106,7 +113,11 @@ fun LineChart(
                             layout,
                             topLeft = Offset(
                                 right - 4.dp.toPx() - layout.size.width,
-                                upper + (lower - upper - layout.size.height) / 2f,
+                                if (band.labelAtTop) {
+                                    upper + 3.dp.toPx()
+                                } else {
+                                    upper + (lower - upper - layout.size.height) / 2f
+                                },
                             ),
                         )
                     }
@@ -189,11 +200,11 @@ fun ScoreChart(points: List<TimedValue>, timeStart: Long, timeEnd: Long, modifie
         points = points,
         timeStart = timeStart,
         timeEnd = timeEnd,
-        axis = scoreAxis(poorBelow = ScoreLabel.FAIR_FROM, goodFrom = ScoreLabel.GOOD_FROM),
+        axis = scoreAxis(SCORE_LABELS),
         bands = listOf(
-            ChartBand(good, 100f, scheme.primary.copy(alpha = 0.16f), "Good"),
-            ChartBand(fair, good, scheme.tertiary.copy(alpha = 0.16f), "Fair"),
-            ChartBand(0f, fair, scheme.error.copy(alpha = 0.14f), "Poor"),
+            ChartBand(good, 100f, scheme.primary.copy(alpha = 0.16f), "Good", labelAtTop = true),
+            ChartBand(fair, good, scheme.tertiary.copy(alpha = 0.16f), "Fair", labelAtTop = true),
+            ChartBand(0f, fair, scheme.error.copy(alpha = 0.14f), "Poor", labelAtTop = true),
         ),
         lineColor = scheme.onSurface,
         modifier = modifier,
@@ -234,8 +245,23 @@ fun SensorChart(
         bands = stripes + ideal
     } else {
         val range = chartRange(sensor, points.map { it.value }, setting.idealMin, setting.idealMax)
-        axis = linearAxis(range, niceTicks(range.low, range.high, target = 4)) { formatValue(it) }
-        bands = listOf(ideal)
+        // Temperature and humidity get many round labels (and stripes between them, like the light
+        // chart); sound keeps the lighter set of labels.
+        val ticks = when (sensor) {
+            SensorType.TEMPERATURE -> stepTicks(range.low, range.high, TEMPERATURE_STEPS)
+            SensorType.HUMIDITY -> stepTicks(range.low, range.high, HUMIDITY_STEPS)
+            else -> niceTicks(range.low, range.high, target = 4)
+        }
+        axis = linearAxis(range, ticks) { formatValue(it) }
+        val striped = sensor == SensorType.TEMPERATURE || sensor == SensorType.HUMIDITY
+        val stripes = if (striped) {
+            stripeEdges(range, ticks).zipWithNext().mapIndexed { index, (from, to) ->
+                ChartBand(from, to, scheme.onSurface.copy(alpha = if (index % 2 == 0) 0.05f else 0f))
+            }
+        } else {
+            emptyList()
+        }
+        bands = stripes + ideal
     }
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {

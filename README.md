@@ -34,8 +34,10 @@ foreground service.
 - **Session results:** the average score with a one-line verdict (for example "Light cost the most
   points, mostly too high"), the share of time each sensor spent in range, a chart of the score over
   time with the Good / Fair / Poor zones shaded, and one chart per sensor with the ideal range
-  shaded. Both axes show several round values and clock times, and the light chart is split into
-  the five light levels. Each sensor has its own colour (temperature orange, humidity blue, light gold, sound
+  shaded. Both axes show several round values and clock times: temperature and humidity are
+  striped like the light chart (humidity in multiples of 5), the score chart has lines at 0, 10, 30,
+  50, 65, 80 and 100, and the light chart is split into the five light levels. Each sensor has its
+  own colour (temperature orange, humidity blue, light gold, sound
   purple), also used for the dot next to its name on the Dashboard. Charts are drawn by hand on a
   Compose Canvas, with no chart library. They update live while a session runs and need at least
   two readings (about 20 seconds).

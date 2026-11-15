@@ -62,6 +62,22 @@ fun niceTicks(low: Float, high: Float, target: Int = 4): List<Float> {
         normalized < 7.0 -> 5.0
         else -> 10.0
     }
+    return ticksEvery(low, high, step)
+}
+
+/**
+ * Labels for an axis between [low] and [high] from a fixed list of [steps] (smallest first): the
+ * smallest step that still gives no more than [maxTicks] labels. A narrow range gets fine steps
+ * and a wide one coarse steps, but the labels always land on the same familiar numbers.
+ */
+fun stepTicks(low: Float, high: Float, steps: List<Double>, maxTicks: Int = 8): List<Float> {
+    if (high <= low) return listOf(low)
+    val step = steps.firstOrNull { ticksEvery(low, high, it).size <= maxTicks } ?: steps.last()
+    return ticksEvery(low, high, step)
+}
+
+/** Every multiple of [step] that lies between [low] and [high]. */
+private fun ticksEvery(low: Float, high: Float, step: Double): List<Float> {
     val ticks = mutableListOf<Float>()
     var index = ceil(low / step - 1e-9).toLong()
     // A hair of tolerance, because a float like 17.4f is really 17.39999962.
@@ -72,6 +88,19 @@ fun niceTicks(low: Float, high: Float, target: Int = 4): List<Float> {
     }
     return ticks
 }
+
+/** Temperature labels: every half degree for a narrow range, up to every 10 degrees for a wide one. */
+val TEMPERATURE_STEPS = listOf(0.5, 1.0, 2.0, 5.0, 10.0)
+
+/** Humidity labels: always multiples of 5, widening to 10, 20 or 25 when the range is big. */
+val HUMIDITY_STEPS = listOf(5.0, 10.0, 20.0, 25.0, 50.0)
+
+/**
+ * The boundaries of alternating stripes behind a chart: the lines between the labels, plus the two
+ * edges of the chart, so even the part above the top label and below the bottom label is striped.
+ */
+fun stripeEdges(range: ValueRange, ticks: List<Float>): List<Float> =
+    (listOf(range.low) + ticks.filter { it > range.low && it < range.high } + range.high).distinct()
 
 /** A straight vertical scale from [range] with a labelled line at each of [ticks]. */
 fun linearAxis(range: ValueRange, ticks: List<Float>, format: (Float) -> String): YAxis {
@@ -94,11 +123,17 @@ fun lightAxis(format: (Float) -> String): YAxis {
     )
 }
 
-/** The score chart: 0 to 100, with lines where Poor, Fair and Good begin. */
-fun scoreAxis(poorBelow: Int, goodFrom: Int): YAxis = YAxis(
-    ticks = listOf(0, poorBelow, goodFrom, 100).map { AxisTick(it.toFloat(), it.toString()) },
+/**
+ * The score chart: 0 to 100 with a labelled line at each of [values]. The lines are denser in the
+ * lower zones, where telling a poor score from a very poor one matters.
+ */
+fun scoreAxis(values: List<Int>): YAxis = YAxis(
+    ticks = values.map { AxisTick(it.toFloat(), it.toString()) },
     toFraction = { (it / 100f).coerceIn(0f, 1f) },
 )
+
+/** The labelled score values: the zone edges (50 and 80) plus 65, 30, 10 and the two ends. */
+val SCORE_LABELS = listOf(0, 10, 30, 50, 65, 80, 100)
 
 /** Labelled moments along the horizontal axis, [stepMillis] apart. */
 data class TimeTicks(val stepMillis: Long, val times: List<Long>)

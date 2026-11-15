@@ -139,10 +139,76 @@ class ChartMathTest {
     }
 
     @Test
-    fun `the score axis marks where each zone begins`() {
-        val axis = scoreAxis(poorBelow = 50, goodFrom = 80)
-        assertEquals(listOf("0", "50", "80", "100"), axis.ticks.map { it.label })
+    fun `the score axis has a line at every chosen value`() {
+        val axis = scoreAxis(SCORE_LABELS)
+        assertEquals(listOf("0", "10", "30", "50", "65", "80", "100"), axis.ticks.map { it.label })
+        assertEquals(0.65f, axis.toFraction(65f), 0.0001f)
         assertEquals(0.8f, axis.toFraction(80f), 0.0001f)
+    }
+
+    @Test
+    fun `the score labels include both zone edges`() {
+        assertTrue(50 in SCORE_LABELS && 80 in SCORE_LABELS)
+        assertEquals(SCORE_LABELS.sorted(), SCORE_LABELS)
+    }
+
+    // --- temperature and humidity labels ---
+
+    @Test
+    fun `a narrow temperature range is labelled every half degree`() {
+        val ticks = stepTicks(15.76f, 19.24f, TEMPERATURE_STEPS)
+        assertEquals(listOf(16f, 16.5f, 17f, 17.5f, 18f, 18.5f, 19f), ticks)
+    }
+
+    @Test
+    fun `a medium temperature range is labelled every other degree`() {
+        // 15.2 to 28.5 degrees: 1 degree steps would be 14 labels, 2 degree steps are 7.
+        assertEquals(listOf(16f, 18f, 20f, 22f, 24f, 26f, 28f), stepTicks(15.2f, 28.5f, TEMPERATURE_STEPS))
+    }
+
+    @Test
+    fun `a wide temperature range gets coarser labels`() {
+        val ticks = stepTicks(0f, 40f, TEMPERATURE_STEPS)
+        assertEquals(listOf(0f, 10f, 20f, 30f, 40f), ticks)
+    }
+
+    @Test
+    fun `humidity labels are always multiples of five`() {
+        for ((low, high) in listOf(38f to 62f, 33.6f to 62.4f, 0f to 100f, 44f to 56f, 20f to 90f)) {
+            val ticks = stepTicks(low, high, HUMIDITY_STEPS)
+            assertTrue("$low-$high gave $ticks", ticks.isNotEmpty() && ticks.all { it % 5f == 0f })
+            assertTrue("$low-$high gave ${ticks.size} labels", ticks.size <= 8)
+        }
+    }
+
+    @Test
+    fun `humidity is labelled every 5 percent when the range allows`() {
+        assertEquals(listOf(40f, 45f, 50f, 55f, 60f), stepTicks(38f, 62f, HUMIDITY_STEPS))
+    }
+
+    @Test
+    fun `the full humidity scale is labelled every 20 percent`() {
+        assertEquals(listOf(0f, 20f, 40f, 60f, 80f, 100f), stepTicks(0f, 100f, HUMIDITY_STEPS))
+    }
+
+    @Test
+    fun `step labels never leave the range`() {
+        val ticks = stepTicks(15.2f, 28.5f, TEMPERATURE_STEPS)
+        assertTrue(ticks.all { it in 15.2f..28.5f })
+    }
+
+    // --- stripes ---
+
+    @Test
+    fun `stripes run between the labels and out to both edges`() {
+        val edges = stripeEdges(ValueRange(15.5f, 19.5f), listOf(16f, 17f, 18f, 19f))
+        assertEquals(listOf(15.5f, 16f, 17f, 18f, 19f, 19.5f), edges)
+    }
+
+    @Test
+    fun `stripes do not repeat an edge that is also a label`() {
+        val edges = stripeEdges(ValueRange(16f, 19f), listOf(16f, 17f, 18f, 19f))
+        assertEquals(listOf(16f, 17f, 18f, 19f), edges)
     }
 
     // --- time labels ---
