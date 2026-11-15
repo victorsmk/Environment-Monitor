@@ -1,5 +1,9 @@
 package com.environmentmonitor.app.ui.dashboard
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,7 +46,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -61,6 +70,7 @@ import com.environmentmonitor.app.ui.advice
 import com.environmentmonitor.app.ui.scoreColor
 import com.environmentmonitor.app.ui.icons.ProfileIconImage
 import com.environmentmonitor.app.ui.icons.SensorIcon
+import com.environmentmonitor.app.ui.theme.color
 import com.environmentmonitor.app.ui.formatDateTime
 import com.environmentmonitor.app.ui.formatDuration
 import com.environmentmonitor.app.ui.formatRange
@@ -160,11 +170,23 @@ private fun EnvironmentPicker(
 @Composable
 private fun ScoreCard(state: DashboardUiState) {
     val score = state.score
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val color by animateColorAsState(
+        targetValue = if (score == null) MaterialTheme.colorScheme.onSurfaceVariant else scoreColor(score.label),
+        animationSpec = tween(600),
+        label = "score colour",
+    )
+    // The card takes a soft tint of the verdict colour, so Good / Fair / Poor reads at a glance.
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = color.copy(alpha = 0.12f).compositeOver(MaterialTheme.colorScheme.surface),
+        ),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (score == null) {
@@ -176,30 +198,45 @@ private fun ScoreCard(state: DashboardUiState) {
                 )
                 return@Column
             }
-            val color = scoreColor(score.label)
+            // The ring sweeps up from empty when the screen opens and eases whenever the score moves.
+            val shown by animateFloatAsState(
+                targetValue = score.overall.toFloat(),
+                animationSpec = tween(900),
+                label = "score",
+            )
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
-                    progress = { score.overall / 100f },
-                    modifier = Modifier.size(180.dp),
+                    progress = { 1f },
+                    modifier = Modifier.size(190.dp),
+                    color = color.copy(alpha = 0.15f),
+                    strokeWidth = 16.dp,
+                    strokeCap = StrokeCap.Round,
+                    trackColor = Color.Transparent,
+                )
+                CircularProgressIndicator(
+                    progress = { shown / 100f },
+                    modifier = Modifier.size(190.dp),
                     color = color,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    strokeWidth = 14.dp,
+                    trackColor = Color.Transparent,
+                    strokeWidth = 16.dp,
+                    strokeCap = StrokeCap.Round,
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = score.overall.toString(),
-                        fontSize = 56.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = shown.roundToInt().toString(),
+                        fontSize = 60.sp,
+                        fontWeight = FontWeight.Bold,
                         color = color,
                     )
                     Text(
                         text = score.label.text,
                         style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                         color = color,
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(18.dp))
             Text(
                 text = score.advice(),
                 style = MaterialTheme.typography.bodyLarge,
@@ -208,7 +245,6 @@ private fun ScoreCard(state: DashboardUiState) {
         }
     }
 }
-
 @Composable
 private fun SensorGrid(state: DashboardUiState) {
     val settings = state.settings
@@ -225,6 +261,7 @@ private fun SensorGrid(state: DashboardUiState) {
                         score = scores?.get(sensor),
                         ignored = settings != null && scores != null && sensor !in scores,
                         range = settings?.get(sensor)?.let { sensor.formatRange(it.idealMin, it.idealMax) },
+                        ideal = settings?.get(sensor)?.let { it.idealMin..it.idealMax },
                         importanceText = settings?.get(sensor)
                             ?.takeIf { it.importance != Importance.OFF }
                             ?.let { "${it.importance.label} · ${shares[sensor]} %" },
@@ -243,6 +280,7 @@ private fun SensorTile(
     score: SensorScore?,
     ignored: Boolean,
     range: String?,
+    ideal: ClosedFloatingPointRange<Float>?,
     /** For example "Critical · 27 %": the sensor's importance and its share of the score. Null if ignored. */
     importanceText: String?,
     modifier: Modifier = Modifier,
@@ -253,6 +291,7 @@ private fun SensorTile(
     }
     Card(
         modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (ignored) {
                 MaterialTheme.colorScheme.surfaceContainerLow
@@ -309,6 +348,10 @@ private fun SensorTile(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (!ignored && ideal != null && value != null) {
+                Spacer(Modifier.height(10.dp))
+                RangeGauge(sensor, value, ideal, color)
+            }
             // How much this sensor counts in the profile in use, so it is clear why it moves the score.
             if (importanceText != null) {
                 Spacer(Modifier.height(8.dp))
@@ -328,6 +371,35 @@ private fun SensorTile(
     }
 }
 
+/**
+ * A thin track from "too low" to "too high" with the ideal range shaded and a dot where the room
+ * is right now. The ends of the track are the points where this sensor's score reaches zero.
+ */
+@Composable
+private fun RangeGauge(sensor: SensorType, value: Float, ideal: ClosedFloatingPointRange<Float>, dotColor: Color) {
+    val low = ideal.start - sensor.tolerance
+    val high = ideal.endInclusive + sensor.tolerance
+    val position by animateFloatAsState(
+        targetValue = ((value - low) / (high - low)).coerceIn(0f, 1f),
+        animationSpec = tween(500),
+        label = "gauge dot",
+    )
+    val track = MaterialTheme.colorScheme.outlineVariant
+    val band = sensor.color().copy(alpha = 0.45f)
+    val ring = MaterialTheme.colorScheme.surfaceContainerHigh
+    Canvas(Modifier.fillMaxWidth().height(14.dp)) {
+        val h = 6.dp.toPx()
+        val top = (size.height - h) / 2
+        val corner = CornerRadius(h / 2)
+        drawRoundRect(track, Offset(0f, top), Size(size.width, h), corner)
+        val bandStart = (ideal.start - low) / (high - low) * size.width
+        val bandEnd = (ideal.endInclusive - low) / (high - low) * size.width
+        drawRoundRect(band, Offset(bandStart, top), Size(bandEnd - bandStart, h), corner)
+        val cx = position * size.width
+        drawCircle(ring, 7.dp.toPx(), Offset(cx, size.height / 2))
+        drawCircle(dotColor, 5.dp.toPx(), Offset(cx, size.height / 2))
+    }
+}
 /** Temperature to one decimal, everything else to whole numbers: no flickering digits. */
 private fun Float.roundTo(sensor: SensorType): Float =
     if (sensor == SensorType.TEMPERATURE) (this * 10).roundToInt() / 10f else roundToInt().toFloat()
