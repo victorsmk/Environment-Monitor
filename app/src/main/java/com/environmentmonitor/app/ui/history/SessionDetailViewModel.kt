@@ -7,10 +7,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.environmentmonitor.app.data.ReadingRepository
 import com.environmentmonitor.app.data.Session
+import com.environmentmonitor.app.data.SessionAnalysis
+import com.environmentmonitor.app.data.SessionAnalyzer
 import com.environmentmonitor.app.data.SessionRepository
 import com.environmentmonitor.app.data.SessionValidator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -23,6 +28,14 @@ class SessionDetailViewModel(
     /** How many readings the session has stored so far. */
     val readingCount: StateFlow<Int> = readings.observeCount(sessionId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** Scores and chart data worked out from the stored readings. Null until there is a reading. */
+    val analysis: StateFlow<SessionAnalysis?> =
+        combine(repository.observe(sessionId), readings.observe(sessionId)) { session, stored ->
+            session?.let { SessionAnalyzer.analyze(it.settings(), stored) }
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** The stored session; changes while it runs or after an edit. Null if it does not exist. */
     val session: StateFlow<Session?> = repository.observe(sessionId)

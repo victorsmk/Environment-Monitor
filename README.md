@@ -14,7 +14,7 @@ live readings.
 | 4 | Scoring engine | done |
 | 5 | Mock sensors and live Dashboard | done |
 | 6 | Recording readings during a session | done |
-| 7 | Session charts | next |
+| 7 | Session results and charts | done |
 | 8 | Settings and polish | planned |
 
 Later phases: **2** connect the real Pico W over Wi-Fi, **3** record in the background with a
@@ -26,8 +26,13 @@ foreground service.
   that costs the most points, a profile picker, and Start / Stop session.
 - **Profiles:** presets (Sleep, Office, Sport) plus your own. Each profile has an ideal range and an
   importance (Off / Low / Medium / High) per sensor. Presets are read-only but can be duplicated.
-- **History:** every session with its profile, start time and duration. Open one to rename it, add
-  notes, stop it or delete it. The session screen also shows how many readings were recorded.
+- **History:** every session with its profile, start time and duration. Open one to see its results,
+  rename it, add notes, stop it or delete it.
+- **Session results:** the average score with a one-line verdict (for example "Light cost the most
+  points, mostly too high"), the share of time each sensor spent in range, a chart of the score over
+  time with the Good / Fair / Poor zones shaded, and one chart per sensor with the ideal range
+  shaded. Charts are drawn by hand on a Compose Canvas, with no chart library. They update live
+  while a session runs and need at least two readings (about 20 seconds).
 - **Recording:** while a session runs, a reading (temperature, humidity, light, sound) is stored every
   10 seconds, starting the moment the session starts. Recording belongs to the app, not to a screen,
   so it carries on when you switch tabs. Deleting a session deletes its readings.
@@ -133,8 +138,9 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 .\gradlew.bat connectedDebugAndroidTest  # database tests, needs an emulator or phone
 ```
 
-Unit tests cover the scoring engine, the mock sensor model, the recorder (on virtual time, so a
-"10 second" interval takes no real time), validation and formatting. The
+Unit tests cover the scoring engine, the session analysis behind the results, the chart maths, the
+mock sensor model, the recorder (on virtual time, so a "10 second" interval takes no real time),
+validation and formatting. The
 instrumented tests run create / read / update / delete against a real in-memory Room database,
 including readings and the cascade delete from sessions.
 HTML reports are written to `app/build/reports/`.
@@ -155,7 +161,7 @@ a change takes about 20 seconds to settle.
 app/src/main/java/com/environmentmonitor/app/
   data/        Room entities, DAOs, repositories, scoring engine, validation
   sensors/     SensorSource interface, the mock implementation, and the SessionRecorder
-  ui/          Compose screens: dashboard/, profiles/, history/, theme/, navigation
+  ui/          Compose screens: dashboard/, profiles/, history/, charts/, theme/, navigation
   AppContainer.kt   hand-wired dependencies (no DI framework)
   AppSettings.kt    small preferences (selected profile, demo scenario)
 app/src/test/          unit tests

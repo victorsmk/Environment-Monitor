@@ -21,6 +21,12 @@ fun formatDuration(millis: Long): String {
 private val dateTimeFormat: DateTimeFormatter =
     DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 
+private val timeFormat: DateTimeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+
+/** Just the clock time in the phone's locale, e.g. "9:30 PM". Used on chart axes. */
+fun formatTime(epochMillis: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    timeFormat.format(Instant.ofEpochMilli(epochMillis).atZone(zone))
+
 /** A start time in the phone's locale and time zone, e.g. "Nov 15, 2026, 9:30 PM". */
 fun formatDateTime(epochMillis: Long, zone: ZoneId = ZoneId.systemDefault()): String =
     dateTimeFormat.format(Instant.ofEpochMilli(epochMillis).atZone(zone))

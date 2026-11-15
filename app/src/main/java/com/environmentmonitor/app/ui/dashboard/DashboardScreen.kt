@@ -53,6 +53,7 @@ import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.sensors.MockScenario
 import com.environmentmonitor.app.ui.advice
+import com.environmentmonitor.app.ui.scoreColor
 import com.environmentmonitor.app.ui.formatDateTime
 import com.environmentmonitor.app.ui.formatDuration
 import com.environmentmonitor.app.ui.formatRange
@@ -143,13 +144,6 @@ private fun EnvironmentPicker(
             )
         }
     }
-}
-
-@Composable
-private fun scoreColor(label: ScoreLabel): Color = when (label) {
-    ScoreLabel.GOOD -> MaterialTheme.colorScheme.primary
-    ScoreLabel.FAIR -> MaterialTheme.colorScheme.tertiary
-    ScoreLabel.POOR -> MaterialTheme.colorScheme.error
 }
 
 @Composable

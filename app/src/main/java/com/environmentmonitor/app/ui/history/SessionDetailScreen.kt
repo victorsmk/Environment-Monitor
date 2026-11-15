@@ -13,12 +13,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,15 +31,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.Importance
+import com.environmentmonitor.app.data.SensorStats
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
-import com.environmentmonitor.app.data.SessionRepository
+import com.environmentmonitor.app.data.SessionAnalysis
+import com.environmentmonitor.app.ui.charts.ScoreChart
+import com.environmentmonitor.app.ui.charts.SensorChart
 import com.environmentmonitor.app.ui.formatDateTime
 import com.environmentmonitor.app.ui.formatDuration
 import com.environmentmonitor.app.ui.formatRange
+import com.environmentmonitor.app.ui.formatValue
+import com.environmentmonitor.app.ui.headline
+import com.environmentmonitor.app.ui.scoreColor
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,6 +58,7 @@ fun SessionDetailScreen(
 ) {
     val session by viewModel.session.collectAsStateWithLifecycle()
     val readingCount by viewModel.readingCount.collectAsStateWithLifecycle()
+    val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -96,6 +105,17 @@ fun SessionDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (current.isActive) {
+                Button(
+                    onClick = viewModel::stop,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Stop session") }
+            }
+
+            ResultsSection(current, analysis)
+
+            SectionTitle("Details")
             OutlinedTextField(
                 value = viewModel.name,
                 onValueChange = viewModel::onNameChange,
@@ -114,16 +134,6 @@ fun SessionDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             SessionInfoCard(current, readingCount)
-            if (current.isActive) {
-                Button(onClick = viewModel::stop, modifier = Modifier.fillMaxWidth()) {
-                    Text("Stop session")
-                }
-            }
-            Text(
-                text = "Scores and charts appear here in the next steps.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 
@@ -140,6 +150,127 @@ fun SessionDetailScreen(
         }
     }
 }
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleLarge)
+}
+
+/** The score, how each sensor did, and the charts. */
+@Composable
+private fun ResultsSection(session: Session, analysis: SessionAnalysis?) {
+    SectionTitle("Results")
+
+    if (analysis == null) {
+        Text(
+            text = if (session.isActive) {
+                "Waiting for the first reading…"
+            } else {
+                "This session has no readings."
+            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+
+    SummaryCard(analysis)
+
+    val first = analysis.scorePoints.first().timestamp
+    val last = analysis.scorePoints.last().timestamp
+    if (analysis.readingCount < 2) {
+        Text(
+            text = "Charts appear once there are two readings (one is stored every 10 seconds).",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+
+    ChartCard(title = "Score over time") {
+        ScoreChart(analysis.scorePoints, timeStart = first, timeEnd = last)
+    }
+    analysis.sensors.forEach { stats ->
+        ChartCard(title = stats.sensor.label, subtitle = stats.rangeSummary()) {
+            SensorChart(
+                sensor = stats.sensor,
+                setting = stats.setting,
+                points = stats.points,
+                timeStart = first,
+                timeEnd = last,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummaryCard(analysis: SessionAnalysis) {
+    val color = scoreColor(analysis.label)
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
+                Text(
+                    text = analysis.overall.toString(),
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = color,
+                )
+                Column(modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)) {
+                    Text(analysis.label.text, style = MaterialTheme.typography.titleMedium, color = color)
+                    Text(
+                        "average score",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Text(analysis.headline(), style = MaterialTheme.typography.bodyLarge)
+            analysis.sensors.forEach { stats ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(stats.sensor.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${stats.inRangePercent} % in range")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChartCard(
+    title: String,
+    subtitle: String? = null,
+    content: @Composable () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            content()
+        }
+    }
+}
+
+/** "Lowest 16.2, average 17.4, highest 18.9 °C" */
+private fun SensorStats.rangeSummary(): String =
+    "Lowest ${formatValue(roundFor(min))}, average ${formatValue(roundFor(average))}, " +
+        "highest ${formatValue(roundFor(max))} ${sensor.unit}"
+
+private fun SensorStats.roundFor(value: Float): Float =
+    if (sensor == SensorType.TEMPERATURE) (value * 10).let { kotlin.math.round(it) / 10f } else kotlin.math.round(value)
 
 @Composable
 private fun SessionInfoCard(session: Session, readingCount: Int) {
