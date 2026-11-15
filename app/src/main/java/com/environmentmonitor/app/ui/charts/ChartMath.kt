@@ -179,6 +179,69 @@ fun downsample(points: List<TimedValue>, maxPoints: Int): List<TimedValue> {
     }
 }
 
+/** The stretch of time a chart currently shows. */
+data class TimeWindow(val start: Long, val end: Long) {
+    val span: Long get() = end - start
+}
+
+/** Moves a window of [span] so that it starts at [start] but never sticks out of [full]. */
+private fun placeInside(start: Long, span: Long, full: TimeWindow): TimeWindow {
+    val clampedStart = start.coerceIn(full.start, (full.end - span).coerceAtLeast(full.start))
+    return TimeWindow(clampedStart, clampedStart + span)
+}
+
+/** This window, kept inside [full] (it may have been set before the session grew). */
+fun TimeWindow.within(full: TimeWindow): TimeWindow =
+    placeInside(start, span.coerceAtMost(full.span), full)
+
+/**
+ * How far in a chart may be zoomed: about three readings across, and never under three seconds.
+ * With fewer than four readings there is nothing to zoom into, so the whole session is the minimum.
+ */
+fun minZoomSpan(points: List<TimedValue>): Long {
+    if (points.size < 4) return Long.MAX_VALUE
+    val spacing = (points.last().timestamp - points.first().timestamp) / (points.size - 1)
+    return maxOf(3 * spacing, 3_000L)
+}
+
+/**
+ * The window after a pinch: [zoom] above 1 zooms in, below 1 out. The moment under the fingers
+ * ([anchor], 0 for the left edge of the chart and 1 for the right) stays where it is.
+ */
+fun zoomWindow(current: TimeWindow, full: TimeWindow, zoom: Float, anchor: Float, minSpan: Long): TimeWindow {
+    if (full.span <= 0 || zoom <= 0f) return current
+    val newSpan = (current.span / zoom).toLong().coerceIn(minOf(minSpan, full.span), full.span)
+    val anchorTime = current.start + (anchor * current.span).toLong()
+    return placeInside(anchorTime - (anchor * newSpan).toLong(), newSpan, full)
+}
+
+/** The window moved by [fractionOfSpan] of its own width: positive is later, negative earlier. */
+fun panWindow(current: TimeWindow, full: TimeWindow, fractionOfSpan: Float): TimeWindow =
+    placeInside(current.start + (fractionOfSpan * current.span).toLong(), current.span, full)
+
+/** The index of the reading closest in time to [timestamp]. [points] must be in time order and not empty. */
+fun nearestIndex(points: List<TimedValue>, timestamp: Long): Int {
+    require(points.isNotEmpty()) { "There are no readings" }
+    var low = 0
+    var high = points.size - 1
+    while (low < high) {
+        val middle = (low + high) ushr 1
+        if (points[middle].timestamp < timestamp) low = middle + 1 else high = middle
+    }
+    // [low] is the first reading at or after the time; the one before it may be closer.
+    return if (low > 0 && timestamp - points[low - 1].timestamp <= points[low].timestamp - timestamp) low - 1 else low
+}
+
+/** The readings inside [window], plus one neighbour on each side so the line runs off the edges. */
+fun visibleSlice(points: List<TimedValue>, window: TimeWindow): List<TimedValue> {
+    if (points.isEmpty()) return points
+    val first = points.indexOfFirst { it.timestamp >= window.start }.let { if (it < 0) points.size - 1 else it }
+    val last = points.indexOfLast { it.timestamp <= window.end }.let { if (it < 0) 0 else it }
+    val from = (first - 1).coerceAtLeast(0)
+    val to = (last + 1).coerceAtMost(points.size - 1)
+    return if (from <= to) points.subList(from, to + 1) else emptyList()
+}
+
 /** Where [value] sits between [start] and [end], 0..1. A zero-length span puts everything at 0. */
 fun fractionOf(value: Long, start: Long, end: Long): Float =
     if (end <= start) 0f else ((value - start).toFloat() / (end - start)).coerceIn(0f, 1f)

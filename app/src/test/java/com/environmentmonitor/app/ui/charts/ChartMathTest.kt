@@ -197,6 +197,140 @@ class ChartMathTest {
         assertTrue(ticks.all { it in 15.2f..28.5f })
     }
 
+    // --- tapping and zooming ---
+
+    private val full = TimeWindow(start = 0, end = 100_000)
+
+    private fun readings(count: Int, spacing: Long = 10_000L) =
+        List(count) { TimedValue(timestamp = it * spacing, value = it.toFloat()) }
+
+    @Test
+    fun `a tap finds the reading closest in time`() {
+        val points = readings(5) // at 0, 10 s, 20 s, 30 s, 40 s
+        assertEquals(0, nearestIndex(points, -5_000))
+        assertEquals(0, nearestIndex(points, 4_000))
+        assertEquals(1, nearestIndex(points, 6_000))
+        assertEquals(2, nearestIndex(points, 20_000))
+        assertEquals(3, nearestIndex(points, 26_000))
+        assertEquals(4, nearestIndex(points, 99_000))
+    }
+
+    @Test
+    fun `a tap exactly between two readings picks the earlier one`() {
+        assertEquals(1, nearestIndex(readings(5), 15_000))
+    }
+
+    @Test
+    fun `a single reading is always the nearest`() {
+        assertEquals(0, nearestIndex(readings(1), 12_345))
+    }
+
+    @Test
+    fun `the nearest reading is found in a long session`() {
+        val points = readings(3_000, spacing = 10_000)
+        assertEquals(1_500, nearestIndex(points, 15_000_000L + 2_000))
+        assertEquals(2_999, nearestIndex(points, Long.MAX_VALUE / 2))
+    }
+
+    @Test
+    fun `zooming in halves the window around the fingers`() {
+        // Fingers in the middle: the middle moment stays in the middle.
+        val zoomed = zoomWindow(full, full, zoom = 2f, anchor = 0.5f, minSpan = 1_000)
+        assertEquals(TimeWindow(25_000, 75_000), zoomed)
+    }
+
+    @Test
+    fun `the moment under the fingers stays put`() {
+        // Fingers at the left edge: the window keeps its start.
+        assertEquals(TimeWindow(0, 50_000), zoomWindow(full, full, 2f, anchor = 0f, minSpan = 1_000))
+        // Fingers at the right edge: the window keeps its end.
+        assertEquals(TimeWindow(50_000, 100_000), zoomWindow(full, full, 2f, anchor = 1f, minSpan = 1_000))
+    }
+
+    @Test
+    fun `zooming out is limited to the whole session`() {
+        val inside = TimeWindow(40_000, 60_000)
+        assertEquals(full, zoomWindow(inside, full, zoom = 0.01f, anchor = 0.5f, minSpan = 1_000))
+    }
+
+    @Test
+    fun `zooming in is limited by the minimum span`() {
+        val zoomed = zoomWindow(full, full, zoom = 1_000f, anchor = 0.5f, minSpan = 5_000)
+        assertEquals(5_000L, zoomed.span)
+    }
+
+    @Test
+    fun `a zoomed window never sticks out of the session`() {
+        val nearEnd = TimeWindow(80_000, 100_000)
+        val zoomed = zoomWindow(nearEnd, full, zoom = 1.5f, anchor = 1f, minSpan = 1_000)
+        assertTrue(zoomed.start >= full.start && zoomed.end <= full.end)
+    }
+
+    @Test
+    fun `panning moves the window by a share of its own width`() {
+        val window = TimeWindow(20_000, 40_000)
+        assertEquals(TimeWindow(30_000, 50_000), panWindow(window, full, 0.5f))
+        assertEquals(TimeWindow(10_000, 30_000), panWindow(window, full, -0.5f))
+    }
+
+    @Test
+    fun `panning stops at the ends of the session`() {
+        val window = TimeWindow(20_000, 40_000)
+        assertEquals(TimeWindow(0, 20_000), panWindow(window, full, -5f))
+        assertEquals(TimeWindow(80_000, 100_000), panWindow(window, full, 50f))
+    }
+
+    @Test
+    fun `a window is pulled back inside a session that is shorter than it was`() {
+        val stale = TimeWindow(70_000, 120_000)
+        val fixed = stale.within(full)
+        assertTrue(fixed.start >= 0 && fixed.end <= 100_000)
+        assertEquals(50_000L, fixed.span)
+    }
+
+    @Test
+    fun `the minimum zoom span is a few readings wide`() {
+        // Readings every 10 seconds: three readings is 30 seconds.
+        assertEquals(30_000L, minZoomSpan(readings(100)))
+        // Readings every second: three of them is only 3 seconds.
+        assertEquals(3_000L, minZoomSpan(readings(100, spacing = 1_000)))
+        // Even closer readings still keep at least 3 seconds in view.
+        assertEquals(3_000L, minZoomSpan(readings(100, spacing = 100)))
+    }
+
+    @Test
+    fun `a session with only a few readings cannot be zoomed`() {
+        assertEquals(Long.MAX_VALUE, minZoomSpan(readings(3)))
+        val full = TimeWindow(0, 20_000)
+        // With the minimum at the whole session, a pinch changes nothing.
+        assertEquals(full, zoomWindow(full, full, 3f, 0.5f, minZoomSpan(readings(3))))
+    }
+
+    @Test
+    fun `only the readings in view are drawn, plus one on each side`() {
+        val points = readings(11) // 0 to 100 s
+        val slice = visibleSlice(points, TimeWindow(32_000, 58_000))
+        // 40, 50 are inside; 30 and 60 run the line off the edges.
+        assertEquals(listOf(30_000L, 40_000L, 50_000L, 60_000L), slice.map { it.timestamp })
+    }
+
+    @Test
+    fun `the whole window shows every reading`() {
+        val points = readings(11)
+        assertEquals(points, visibleSlice(points, TimeWindow(0, 100_000)))
+    }
+
+    @Test
+    fun `a window between two readings still shows the line across it`() {
+        val slice = visibleSlice(readings(11), TimeWindow(41_000, 49_000))
+        assertEquals(listOf(40_000L, 50_000L), slice.map { it.timestamp })
+    }
+
+    @Test
+    fun `no readings means nothing to draw`() {
+        assertEquals(emptyList<TimedValue>(), visibleSlice(emptyList(), full))
+    }
+
     // --- stripes ---
 
     @Test

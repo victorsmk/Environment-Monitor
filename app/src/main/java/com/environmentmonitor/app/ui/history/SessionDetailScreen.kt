@@ -209,6 +209,11 @@ private fun ResultsSection(session: Session, analysis: SessionAnalysis?) {
         return
     }
 
+    Text(
+        text = "Tap or drag on a chart to read the exact value at any moment.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     ChartCard(title = "Score over time") {
         ScoreChart(analysis.scorePoints, timeStart = first, timeEnd = last)
     }

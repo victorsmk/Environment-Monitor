@@ -58,4 +58,10 @@ dependencies {
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // Keeps the debug app on the same version of this tiny library as the UI tests need; without
+    // it the test classpath asks for 1.2.0 while the debug app is pinned to 1.1.0.
+    debugImplementation(libs.androidx.concurrent.futures)
 }

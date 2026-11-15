@@ -2,6 +2,13 @@ package com.environmentmonitor.app.ui.charts
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,31 +19,49 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.environmentmonitor.app.data.LightLevel
+import com.environmentmonitor.app.data.RangeStatus
 import com.environmentmonitor.app.data.ScoreLabel
+import com.environmentmonitor.app.data.ScoringEngine
 import com.environmentmonitor.app.data.SensorSetting
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.TimedValue
 import com.environmentmonitor.app.ui.formatRange
+import com.environmentmonitor.app.ui.formatReading
 import com.environmentmonitor.app.ui.formatTimeTick
 import com.environmentmonitor.app.ui.formatValue
 import com.environmentmonitor.app.ui.theme.color
@@ -56,11 +81,26 @@ data class ChartBand(
     val labelAtTop: Boolean = false,
 )
 
+/** What the bubble shows for the reading the user touched: a [value] line and an optional [detail] line. */
+data class ChartTooltip(val value: String, val detail: String? = null)
+
 private const val MAX_DRAWN_POINTS = 400
+
+/** Space left of the plot for the value labels, and the margins around it. */
+private val PLOT_LEFT = 44.dp
+private val PLOT_RIGHT_MARGIN = 10.dp
 
 /**
  * Time on the horizontal axis, a value on the vertical one, plus shaded bands. Both axes carry
  * several labelled lines, so the in-between values can be read, not just the extremes.
+ *
+ * Touch:
+ * - **Tap or drag** one finger along the chart to read the exact value and time of the closest
+ *   reading, in a bubble (tap the same reading again to hide it).
+ * - **Pinch** with two fingers to zoom in on a stretch of time; the readings in view are redrawn
+ *   in finer detail. Two-finger drags pan, and the arrow buttons step earlier or later.
+ * - A one-finger drag that goes mostly up or down still scrolls the page.
+ *
  * Drawn by hand on a Canvas, so no chart library is needed.
  */
 @Composable
@@ -72,102 +112,291 @@ fun LineChart(
     bands: List<ChartBand>,
     lineColor: Color,
     modifier: Modifier = Modifier,
+    tooltip: ((TimedValue) -> ChartTooltip)? = null,
 ) {
     val measurer = rememberTextMeasurer()
     val scheme = MaterialTheme.colorScheme
     val gridColor = scheme.outlineVariant
     val axisStyle = TextStyle(fontSize = 11.sp, color = scheme.onSurfaceVariant)
     val bandStyle = TextStyle(fontSize = 10.sp, color = scheme.onSurfaceVariant.copy(alpha = 0.85f))
-    val drawn = remember(points) { downsample(points, MAX_DRAWN_POINTS) }
-    val timeAxis = remember(timeStart, timeEnd) {
+    val tipSmallStyle = TextStyle(fontSize = 11.sp, color = scheme.onSurfaceVariant)
+    val tipValueStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = scheme.onSurface)
+
+    // What the user has done to the chart: a zoomed window (null = everything) and a touched reading.
+    val full = TimeWindow(timeStart, timeEnd)
+    var zoomed by remember { mutableStateOf<TimeWindow?>(null) }
+    var selectedTime by remember { mutableStateOf<Long?>(null) }
+    val view = zoomed?.within(full) ?: full
+    val canZoom = points.size >= 4
+
+    // The gesture code runs for a long time; these keep it looking at the latest values.
+    val latestPoints by rememberUpdatedState(points)
+    val latestFull by rememberUpdatedState(full)
+    val latestView by rememberUpdatedState(view)
+
+    val drawn = remember(points, view) { downsample(visibleSlice(points, view), MAX_DRAWN_POINTS) }
+    val timeAxis = remember(view) {
         val offset = ZoneId.systemDefault().rules
-            .getOffset(Instant.ofEpochMilli(timeStart)).totalSeconds * 1_000L
-        timeTicks(timeStart, timeEnd, target = 4, offsetMillis = offset)
+            .getOffset(Instant.ofEpochMilli(view.start)).totalSeconds * 1_000L
+        timeTicks(view.start, view.end, target = 4, offsetMillis = offset)
     }
 
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(210.dp),
-    ) {
-        val left = 44.dp.toPx()
-        val top = 8.dp.toPx()
-        val bottom = size.height - 24.dp.toPx()
-        val right = size.width - 10.dp.toPx()
-        val plotWidth = right - left
-        val plotHeight = bottom - top
+    /** Touches the reading nearest to horizontal position [x]; a touch outside the plot clears it. */
+    fun touch(x: Float, left: Float, right: Float, toggle: Boolean) {
+        val current = latestPoints
+        if (current.isEmpty() || x < left || x > right) {
+            selectedTime = null
+            return
+        }
+        val fraction = ((x - left) / (right - left)).coerceIn(0f, 1f)
+        val time = latestView.start + (fraction * latestView.span).toLong()
+        val reading = current[nearestIndex(current, time)]
+        selectedTime = if (toggle && selectedTime == reading.timestamp) null else reading.timestamp
+    }
 
-        fun x(timestamp: Long) = left + plotWidth * fractionOf(timestamp, timeStart, timeEnd)
-        fun y(value: Float) = bottom - plotHeight * axis.toFraction(value)
+    Column(modifier) {
+        ZoomBar(
+            canZoom = canZoom,
+            isZoomed = zoomed != null,
+            onEarlier = { zoomed = panWindow(view, full, -0.5f).takeIf { it.span < full.span } },
+            onLater = { zoomed = panWindow(view, full, 0.5f).takeIf { it.span < full.span } },
+            onReset = { zoomed = null },
+        )
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(210.dp)
+                // Tap: read one reading.
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        touch(it.x, PLOT_LEFT.toPx(), size.width - PLOT_RIGHT_MARGIN.toPx(), toggle = true)
+                    }
+                }
+                // One-finger horizontal drag: slide along the chart reading values. Vertical drags
+                // are not taken, so the page still scrolls.
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            touch(it.x, PLOT_LEFT.toPx(), size.width - PLOT_RIGHT_MARGIN.toPx(), toggle = false)
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            touch(
+                                change.position.x,
+                                PLOT_LEFT.toPx(),
+                                size.width - PLOT_RIGHT_MARGIN.toPx(),
+                                toggle = false,
+                            )
+                            change.consume()
+                        },
+                    )
+                }
+                // Two fingers: pinch to zoom and drag to pan.
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        do {
+                            val event = awaitPointerEvent()
+                            val fingers = event.changes.count { it.pressed }
+                            val minSpan = minZoomSpan(latestPoints)
+                            if (fingers >= 2 && minSpan != Long.MAX_VALUE) {
+                                val zoom = event.calculateZoom()
+                                val pan = event.calculatePan()
+                                if (zoom != 1f || pan != Offset.Zero) {
+                                    val left = PLOT_LEFT.toPx()
+                                    val plotWidth = (size.width - PLOT_RIGHT_MARGIN.toPx() - left).coerceAtLeast(1f)
+                                    val anchor = ((event.calculateCentroid().x - left) / plotWidth).coerceIn(0f, 1f)
+                                    val currentFull = latestFull
+                                    val zoomedIn = zoomWindow(latestView, currentFull, zoom, anchor, minSpan)
+                                    // Dragging the chart to the right shows earlier moments.
+                                    val next = panWindow(zoomedIn, currentFull, -pan.x / plotWidth)
+                                    zoomed = next.takeIf { it.span < currentFull.span }
+                                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                                }
+                            }
+                        } while (event.changes.any { it.pressed })
+                    }
+                },
+        ) {
+            val left = PLOT_LEFT.toPx()
+            val top = 8.dp.toPx()
+            val bottom = size.height - 24.dp.toPx()
+            val right = size.width - PLOT_RIGHT_MARGIN.toPx()
+            val plotWidth = right - left
+            val plotHeight = bottom - top
 
-        // Bands first, so everything else sits on top of them.
-        bands.forEach { band ->
-            val upper = y(band.to)
-            val lower = y(band.from)
-            if (lower > upper) {
-                drawRect(band.color, Offset(left, upper), Size(plotWidth, lower - upper))
-                if (band.label != null) {
-                    val layout = measurer.measure(band.label, bandStyle)
-                    if (layout.size.height <= lower - upper) {
-                        drawText(
-                            layout,
-                            topLeft = Offset(
-                                right - 4.dp.toPx() - layout.size.width,
-                                if (band.labelAtTop) {
-                                    upper + 3.dp.toPx()
-                                } else {
-                                    upper + (lower - upper - layout.size.height) / 2f
-                                },
-                            ),
-                        )
+            fun x(timestamp: Long) = left + plotWidth * fractionOf(timestamp, view.start, view.end)
+            fun y(value: Float) = bottom - plotHeight * axis.toFraction(value)
+
+            // Bands first, so everything else sits on top of them.
+            bands.forEach { band ->
+                val upper = y(band.to)
+                val lower = y(band.from)
+                if (lower > upper) {
+                    drawRect(band.color, Offset(left, upper), Size(plotWidth, lower - upper))
+                    if (band.label != null) {
+                        val layout = measurer.measure(band.label, bandStyle)
+                        if (layout.size.height <= lower - upper) {
+                            drawText(
+                                layout,
+                                topLeft = Offset(
+                                    right - 4.dp.toPx() - layout.size.width,
+                                    if (band.labelAtTop) {
+                                        upper + 3.dp.toPx()
+                                    } else {
+                                        upper + (lower - upper - layout.size.height) / 2f
+                                    },
+                                ),
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // Horizontal lines with their values on the left.
-        axis.ticks.forEach { tick ->
-            val ty = y(tick.value)
-            drawLine(gridColor, Offset(left, ty), Offset(right, ty), strokeWidth = 1.dp.toPx())
-            val layout = measurer.measure(tick.label, axisStyle)
-            val labelY = (ty - layout.size.height / 2f).coerceIn(0f, size.height - layout.size.height)
-            drawText(layout, topLeft = Offset((left - 6.dp.toPx() - layout.size.width).coerceAtLeast(0f), labelY))
-        }
+            // Horizontal lines with their values on the left.
+            axis.ticks.forEach { tick ->
+                val ty = y(tick.value)
+                drawLine(gridColor, Offset(left, ty), Offset(right, ty), strokeWidth = 1.dp.toPx())
+                val layout = measurer.measure(tick.label, axisStyle)
+                val labelY = (ty - layout.size.height / 2f).coerceIn(0f, size.height - layout.size.height)
+                drawText(layout, topLeft = Offset((left - 6.dp.toPx() - layout.size.width).coerceAtLeast(0f), labelY))
+            }
 
-        // Vertical lines with their times underneath.
-        timeAxis.times.forEach { time ->
-            val tx = x(time)
-            drawLine(
-                gridColor.copy(alpha = 0.6f),
-                Offset(tx, top),
-                Offset(tx, bottom),
-                strokeWidth = 1.dp.toPx(),
-            )
-            val layout = measurer.measure(formatTimeTick(time, timeAxis.stepMillis), axisStyle)
-            val labelX = (tx - layout.size.width / 2f).coerceIn(left - 6.dp.toPx(), size.width - layout.size.width)
-            drawText(layout, topLeft = Offset(labelX, bottom + 4.dp.toPx()))
-        }
-
-        when {
-            drawn.isEmpty() -> Unit
-            drawn.size == 1 -> drawCircle(lineColor, 4.dp.toPx(), Offset(x(drawn[0].timestamp), y(drawn[0].value)))
-            else -> {
-                val path = Path().apply {
-                    moveTo(x(drawn[0].timestamp), y(drawn[0].value))
-                    for (i in 1 until drawn.size) lineTo(x(drawn[i].timestamp), y(drawn[i].value))
-                }
-                drawPath(
-                    path,
-                    lineColor,
-                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+            // Vertical lines with their times underneath.
+            timeAxis.times.forEach { time ->
+                val tx = x(time)
+                drawLine(
+                    gridColor.copy(alpha = 0.6f),
+                    Offset(tx, top),
+                    Offset(tx, bottom),
+                    strokeWidth = 1.dp.toPx(),
                 )
-                // Few points: mark each one, so a short session does not look like a smooth curve.
-                if (drawn.size <= 40) {
-                    drawn.forEach {
-                        drawCircle(lineColor, 2.5.dp.toPx(), Offset(x(it.timestamp), y(it.value)))
+                val layout = measurer.measure(formatTimeTick(time, timeAxis.stepMillis), axisStyle)
+                val labelX = (tx - layout.size.width / 2f).coerceIn(left - 6.dp.toPx(), size.width - layout.size.width)
+                drawText(layout, topLeft = Offset(labelX, bottom + 4.dp.toPx()))
+            }
+
+            // The line, kept inside the plot when zoomed in.
+            clipRect(left, top, right, bottom) {
+                when {
+                    drawn.isEmpty() -> Unit
+                    drawn.size == 1 ->
+                        drawCircle(lineColor, 4.dp.toPx(), Offset(x(drawn[0].timestamp), y(drawn[0].value)))
+                    else -> {
+                        val path = Path().apply {
+                            moveTo(x(drawn[0].timestamp), y(drawn[0].value))
+                            for (i in 1 until drawn.size) lineTo(x(drawn[i].timestamp), y(drawn[i].value))
+                        }
+                        drawPath(
+                            path,
+                            lineColor,
+                            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+                        )
+                        // Few points: mark each one, so a short stretch does not look like a smooth curve.
+                        if (drawn.size <= 40) {
+                            drawn.forEach {
+                                drawCircle(lineColor, 2.5.dp.toPx(), Offset(x(it.timestamp), y(it.value)))
+                            }
+                        }
                     }
                 }
             }
+
+            // The touched reading: a dashed line, a dot and a bubble with the exact value.
+            val touchedTime = selectedTime
+            val touched = touchedTime?.let { time ->
+                points.getOrNull(if (points.isEmpty()) -1 else nearestIndex(points, time))
+                    ?.takeIf { it.timestamp == time && it.timestamp in view.start..view.end }
+            }
+            if (touched != null) {
+                val tx = x(touched.timestamp)
+                val ty = y(touched.value)
+                drawLine(
+                    scheme.onSurface.copy(alpha = 0.55f),
+                    Offset(tx, top),
+                    Offset(tx, bottom),
+                    strokeWidth = 1.5.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)),
+                )
+                drawCircle(scheme.surface, 7.dp.toPx(), Offset(tx, ty))
+                drawCircle(lineColor, 5.dp.toPx(), Offset(tx, ty))
+
+                val tip = tooltip?.invoke(touched)
+                if (tip != null) {
+                    val timeLayout = measurer.measure(formatTimeTick(touched.timestamp, 1_000L), tipSmallStyle)
+                    val valueLayout = measurer.measure(tip.value, tipValueStyle)
+                    val detailLayout = tip.detail?.let { measurer.measure(it, tipSmallStyle) }
+                    val padding = 8.dp.toPx()
+                    val gap = 2.dp.toPx()
+                    val contentWidth = maxOf(
+                        timeLayout.size.width,
+                        valueLayout.size.width,
+                        detailLayout?.size?.width ?: 0,
+                    )
+                    val boxWidth = contentWidth + 2 * padding
+                    val boxHeight = 2 * padding + timeLayout.size.height + gap + valueLayout.size.height +
+                        (detailLayout?.let { gap + it.size.height } ?: 0f)
+                    val boxX = (tx - boxWidth / 2f).coerceIn(left, (right - boxWidth).coerceAtLeast(left))
+                    // On the side of the plot away from the reading, so the bubble does not cover it.
+                    val boxY = if (ty < (top + bottom) / 2f) bottom - boxHeight - 6.dp.toPx() else top + 6.dp.toPx()
+                    drawRoundRect(
+                        scheme.surface.copy(alpha = 0.96f),
+                        Offset(boxX, boxY),
+                        Size(boxWidth, boxHeight),
+                        CornerRadius(8.dp.toPx()),
+                    )
+                    drawRoundRect(
+                        scheme.outline,
+                        Offset(boxX, boxY),
+                        Size(boxWidth, boxHeight),
+                        CornerRadius(8.dp.toPx()),
+                        style = Stroke(1.dp.toPx()),
+                    )
+                    var textY = boxY + padding
+                    drawText(timeLayout, topLeft = Offset(boxX + padding, textY))
+                    textY += timeLayout.size.height + gap
+                    drawText(valueLayout, topLeft = Offset(boxX + padding, textY))
+                    if (detailLayout != null) {
+                        textY += valueLayout.size.height + gap
+                        drawText(detailLayout, topLeft = Offset(boxX + padding, textY))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The line above a chart: the zoom hint, or (once zoomed in) arrows to step along and a way back. */
+@Composable
+private fun ZoomBar(
+    canZoom: Boolean,
+    isZoomed: Boolean,
+    onEarlier: () -> Unit,
+    onLater: () -> Unit,
+    onReset: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when {
+            isZoomed -> {
+                IconButton(onClick = onEarlier, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Earlier")
+                }
+                IconButton(onClick = onLater, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Later")
+                }
+                TextButton(onClick = onReset) { Text("Reset zoom") }
+            }
+            canZoom -> Text(
+                text = "Pinch to zoom",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 6.dp),
+            )
         }
     }
 }
@@ -208,6 +437,10 @@ fun ScoreChart(points: List<TimedValue>, timeStart: Long, timeEnd: Long, modifie
         ),
         lineColor = scheme.onSurface,
         modifier = modifier,
+        tooltip = { reading ->
+            val score = reading.value.toInt()
+            ChartTooltip(value = "Score $score", detail = ScoreLabel.of(score).text)
+        },
     )
 }
 
@@ -272,6 +505,20 @@ fun SensorChart(
             axis = axis,
             bands = bands,
             lineColor = color,
+            tooltip = { reading ->
+                val status = when (ScoringEngine.status(setting, reading.value)) {
+                    RangeStatus.IN_RANGE -> "In range"
+                    RangeStatus.TOO_LOW -> "Too low"
+                    RangeStatus.TOO_HIGH -> "Too high"
+                }
+                // Light also gets its plain word, as everywhere else.
+                val detail = if (sensor == SensorType.LIGHT) {
+                    "${LightLevel.of(reading.value).label} · $status"
+                } else {
+                    status
+                }
+                ChartTooltip(value = sensor.formatReading(reading.value), detail = detail)
+            },
         )
         ChartLegend(
             color = color.copy(alpha = 0.45f),

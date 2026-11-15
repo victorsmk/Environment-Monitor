@@ -5,17 +5,6 @@ Move an item to the plan (see the status table in the README) when we pick it up
 
 ## Requests
 
-### Interactive charts (raised after step 7)
-- (Partly addressed: both chart axes now show several values. Tapping a point for its exact value
-  and zooming are still open.)
-- Make each point on a chart tappable, so tapping it shows the exact value (and the time).
-- If a chart has too many points to tap reliably, make the charts zoomable (pinch to zoom, and
-  probably drag to pan) so the user can zoom in on a stretch of time.
-- Things to think about when we get to it: a session can have thousands of readings (one every
-  10 seconds), and charts currently draw at most about 400 averaged points, so tapping needs to
-  snap to the nearest real reading, and zooming should show finer detail instead of just
-  magnifying the averaged line.
-
 ### Light slider on the same five-level scale (raised while building the level picker)
 - The light slider is a straight 0–1000 lux scale, so a range like 0–50 lux (Dark to Dim) squeezes
   both thumbs against the left edge and is hard to see or drag. The light chart already gives each
@@ -34,6 +23,24 @@ Move an item to the plan (see the status table in the README) when we pick it up
   "polish" step (step 8), but could be done earlier.
 
 ## Done
+
+### Interactive charts
+- **Read an exact value:** tap a chart, or drag one finger along it, and a marker (dashed line and
+  dot) with a bubble shows the time and the exact value of the closest real reading. The bubble
+  also says how it compares with the ideal range ("In range", "Too low", "Too high"); the light
+  chart adds the plain word ("Bright · Too high") and the score chart the label ("Score 35, Poor").
+  Tapping the same reading again hides it.
+- **Zoom:** pinch with two fingers to zoom in on a stretch of time. Only the readings in view are
+  redrawn, so zooming in shows finer detail instead of a magnified average, and the time labels
+  switch to seconds. Two-finger drags pan; arrow buttons step earlier or later; "Reset zoom"
+  returns to the whole session. Charts with fewer than four readings do not zoom.
+- **Scrolling still works:** a mostly vertical one-finger swipe that starts on a chart scrolls the
+  page as usual.
+- **Tested:** the maths (nearest reading, zoom, pan, which readings are in view) is unit tested.
+  The gestures are checked by on-device UI tests that really pinch, tap and drag a chart (they
+  cannot be done through `adb`, so they run as a Compose UI test).
+- Not remembered: the zoom and the touched reading reset when you leave the screen or rotate the
+  phone.
 
 ### Is lux the right unit for light?
 - Decided: keep lux for storage, scoring and profiles, and add a plain word next to it. The scale is

@@ -5,6 +5,7 @@ import com.environmentmonitor.app.data.LightLevel
 import com.environmentmonitor.app.data.Profile
 import com.environmentmonitor.app.data.SensorType
 import java.util.Locale
+import kotlin.math.round
 
 /** 20 -> "20", 20.5 -> "20.5" */
 fun formatValue(value: Float): String =
@@ -13,6 +14,12 @@ fun formatValue(value: Float): String =
 /** "16–19 °C" */
 fun SensorType.formatRange(min: Float, max: Float): String =
     "${formatValue(min)}–${formatValue(max)} $unit"
+
+/** A reading with its unit, rounded the way the app shows it: "21.6 °C", "49 %", "537 lux", "44 level". */
+fun SensorType.formatReading(value: Float): String {
+    val shown = if (this == SensorType.TEMPERATURE) round(value * 10f) / 10f else round(value)
+    return "${formatValue(shown)} $unit"
+}
 
 /**
  * Plain words for a range, for the light sensor only ("Bright", "Dim to Bright"); null for the
