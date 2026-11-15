@@ -24,6 +24,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.environmentmonitor.app.ui.dashboard.DashboardScreen
 import com.environmentmonitor.app.ui.history.HistoryScreen
 import com.environmentmonitor.app.ui.history.SessionDetailScreen
 import com.environmentmonitor.app.ui.profiles.NEW_PROFILE_ID
@@ -79,12 +80,11 @@ fun AppRoot() {
     ) { padding ->
         NavHost(
             navController = navController,
-            // Profiles is the start screen while it is the only finished feature (step 2).
-            startDestination = TopLevelDestination.Profiles.route,
+            startDestination = TopLevelDestination.Dashboard.route,
             modifier = Modifier.padding(padding),
         ) {
             composable(TopLevelDestination.Dashboard.route) {
-                PlaceholderScreen("Dashboard", "The live score arrives in step 5.")
+                DashboardScreen(viewModel = viewModel(factory = AppViewModelProvider.Factory))
             }
             composable(TopLevelDestination.Profiles.route) {
                 ProfilesScreen(

@@ -19,6 +19,10 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE id = :id")
     suspend fun getById(id: Long): Session?
 
+    /** The session that is recording right now, if any. */
+    @Query("SELECT * FROM sessions WHERE endedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
+    fun observeActive(): Flow<Session?>
+
     @Query("SELECT COUNT(*) FROM sessions WHERE endedAt IS NULL")
     suspend fun activeCount(): Int
 

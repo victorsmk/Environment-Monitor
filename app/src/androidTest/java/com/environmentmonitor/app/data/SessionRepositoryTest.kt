@@ -93,6 +93,15 @@ class SessionRepositoryTest {
     }
 
     @Test
+    fun activeSessionFollowsStartAndStop() = runBlocking {
+        assertNull(sessions.activeSession.first())
+        val id = sessions.start(sleep, "A")!!
+        assertEquals(id, sessions.activeSession.first()!!.id)
+        sessions.stop(id)
+        assertNull(sessions.activeSession.first())
+    }
+
+    @Test
     fun deleteRemovesTheSession() = runBlocking {
         val id = sessions.start(sleep, "A")!!
         assertTrue(sessions.delete(id))

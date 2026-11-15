@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.environmentmonitor.app.EnvironmentMonitorApplication
+import com.environmentmonitor.app.ui.dashboard.DashboardViewModel
 import com.environmentmonitor.app.ui.history.HistoryViewModel
 import com.environmentmonitor.app.ui.history.SessionDetailViewModel
 import com.environmentmonitor.app.ui.profiles.NEW_PROFILE_ID
@@ -30,9 +31,14 @@ object AppViewModelProvider {
             )
         }
         initializer {
-            HistoryViewModel(
-                sessions = app().container.sessionRepository,
+            HistoryViewModel(sessions = app().container.sessionRepository)
+        }
+        initializer {
+            DashboardViewModel(
+                sensors = app().container.sensorSource,
                 profiles = app().container.profileRepository,
+                sessions = app().container.sessionRepository,
+                settings = app().container.settings,
             )
         }
         initializer {

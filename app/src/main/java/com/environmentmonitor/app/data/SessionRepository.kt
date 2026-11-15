@@ -11,6 +11,9 @@ class SessionRepository(
     /** All sessions, newest first. */
     val sessions: Flow<List<Session>> = dao.observeAll()
 
+    /** The running session, or null when nothing is recording. */
+    val activeSession: Flow<Session?> = dao.observeActive()
+
     fun observe(id: Long): Flow<Session?> = dao.observe(id)
 
     suspend fun get(id: Long): Session? = dao.getById(id)
