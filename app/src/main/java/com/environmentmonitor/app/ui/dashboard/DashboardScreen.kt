@@ -53,6 +53,7 @@ import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.ui.advice
 import com.environmentmonitor.app.ui.scoreColor
+import com.environmentmonitor.app.ui.theme.SensorDot
 import com.environmentmonitor.app.ui.formatDateTime
 import com.environmentmonitor.app.ui.formatDuration
 import com.environmentmonitor.app.ui.formatRange
@@ -243,11 +244,15 @@ private fun SensorTile(
         ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = sensor.label,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SensorDot(sensor)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = sensor.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = if (value != null) formatValue(value.roundTo(sensor)) else "–",

@@ -14,12 +14,6 @@ Move an item to the plan (see the status table in the README) when we pick it up
   snap to the nearest real reading, and zooming should show finer detail instead of just
   magnifying the averaged line.
 
-### A different colour for each chart (raised after step 7)
-- Today every chart uses the same line colour. Each sensor's chart should have its own colour
-  (temperature, humidity, light, sound, and the score chart).
-- Probably the same colours should be reused on the Dashboard tiles, so a sensor looks the same
-  everywhere. Colours must stay readable in light and dark mode and not rely on colour alone.
-
 ### A more attractive, more interesting look (raised after step 7)
 - The app feels bland: the colours and designs are all the same.
 - Open questions: how far to go (a colour and typography refresh, or also icons, illustrations,
@@ -40,3 +34,14 @@ Move an item to the plan (see the status table in the README) when we pick it up
     "Bright"), show a 0–100 level like the sound sensor does, or let the user choose. The profile
     editor and the scoring rules would need to stay consistent whichever we pick.
 - Decision still to make.
+
+## Done
+
+### A different colour for each chart
+- Each sensor has its own colour: temperature orange, humidity blue, light gold, sound purple. The
+  score chart stays neutral. The colour appears on the chart line and its shaded ideal range, and
+  as a dot next to the sensor's name on the Dashboard tiles, the session summary and chart titles.
+- Each colour has a darker variant for light mode and a lighter one for dark mode, and a unit test
+  checks that they keep at least a 3:1 contrast against the card colours. The names stay next to
+  the dots, so colour is never the only clue.
+- Dark mode has not been looked at on a real screen yet.

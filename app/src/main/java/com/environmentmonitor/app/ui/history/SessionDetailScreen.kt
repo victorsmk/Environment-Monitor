@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -52,6 +54,7 @@ import com.environmentmonitor.app.ui.formatRange
 import com.environmentmonitor.app.ui.formatValue
 import com.environmentmonitor.app.ui.headline
 import com.environmentmonitor.app.ui.scoreColor
+import com.environmentmonitor.app.ui.theme.SensorDot
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -209,7 +212,7 @@ private fun ResultsSection(session: Session, analysis: SessionAnalysis?) {
         ScoreChart(analysis.scorePoints, timeStart = first, timeEnd = last)
     }
     analysis.sensors.forEach { stats ->
-        ChartCard(title = stats.sensor.label, subtitle = stats.rangeSummary()) {
+        ChartCard(title = stats.sensor.label, subtitle = stats.rangeSummary(), sensor = stats.sensor) {
             SensorChart(
                 sensor = stats.sensor,
                 setting = stats.setting,
@@ -251,7 +254,11 @@ private fun SummaryCard(analysis: SessionAnalysis) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(stats.sensor.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        SensorDot(stats.sensor)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stats.sensor.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Text("${stats.inRangePercent} % in range")
                 }
             }
@@ -263,6 +270,7 @@ private fun SummaryCard(analysis: SessionAnalysis) {
 private fun ChartCard(
     title: String,
     subtitle: String? = null,
+    sensor: SensorType? = null,
     content: @Composable () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -270,7 +278,13 @@ private fun ChartCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                if (sensor != null) {
+                    SensorDot(sensor, size = 12.dp)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(title, style = MaterialTheme.typography.titleMedium)
+            }
             if (subtitle != null) {
                 Text(
                     subtitle,

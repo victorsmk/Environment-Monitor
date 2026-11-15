@@ -32,8 +32,10 @@ foreground service.
 - **Session results:** the average score with a one-line verdict (for example "Light cost the most
   points, mostly too high"), the share of time each sensor spent in range, a chart of the score over
   time with the Good / Fair / Poor zones shaded, and one chart per sensor with the ideal range
-  shaded. Charts are drawn by hand on a Compose Canvas, with no chart library. They update live
-  while a session runs and need at least two readings (about 20 seconds).
+  shaded. Each sensor has its own colour (temperature orange, humidity blue, light gold, sound
+  purple), also used for the dot next to its name on the Dashboard. Charts are drawn by hand on a
+  Compose Canvas, with no chart library. They update live while a session runs and need at least
+  two readings (about 20 seconds).
 - **Recording:** while a session runs, a reading (temperature, humidity, light, sound) is stored at the
   chosen interval, starting the moment the session starts. Recording belongs to the app, not to a
   screen, so it carries on when you switch tabs. Deleting a session deletes its readings.

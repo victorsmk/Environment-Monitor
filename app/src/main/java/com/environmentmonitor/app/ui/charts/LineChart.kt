@@ -37,6 +37,7 @@ import com.environmentmonitor.app.data.TimedValue
 import com.environmentmonitor.app.ui.formatRange
 import com.environmentmonitor.app.ui.formatTime
 import com.environmentmonitor.app.ui.formatValue
+import com.environmentmonitor.app.ui.theme.color
 
 /** A shaded horizontal stripe behind the line, from value [from] up to [to]. */
 data class ChartBand(val from: Float, val to: Float, val color: Color)
@@ -202,7 +203,7 @@ fun SensorChart(
     timeEnd: Long,
     modifier: Modifier = Modifier,
 ) {
-    val scheme = MaterialTheme.colorScheme
+    val color = sensor.color()
     val range = chartRange(sensor, points.map { it.value }, setting.idealMin, setting.idealMax)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         LineChart(
@@ -210,12 +211,12 @@ fun SensorChart(
             timeStart = timeStart,
             timeEnd = timeEnd,
             range = range,
-            bands = listOf(ChartBand(setting.idealMin, setting.idealMax, scheme.primary.copy(alpha = 0.2f))),
-            lineColor = scheme.onSurface,
+            bands = listOf(ChartBand(setting.idealMin, setting.idealMax, color.copy(alpha = 0.2f))),
+            lineColor = color,
             formatY = { formatValue(if (sensor == SensorType.TEMPERATURE) it else kotlin.math.round(it)) },
         )
         ChartLegend(
-            color = scheme.primary.copy(alpha = 0.35f),
+            color = color.copy(alpha = 0.4f),
             text = "Ideal range ${sensor.formatRange(setting.idealMin, setting.idealMax)}",
             modifier = Modifier.padding(start = 44.dp),
         )
