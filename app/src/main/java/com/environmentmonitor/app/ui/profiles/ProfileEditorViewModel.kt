@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.environmentmonitor.app.data.Importance
 import com.environmentmonitor.app.data.Profile
+import com.environmentmonitor.app.data.ProfileIcon
 import com.environmentmonitor.app.data.ProfileRepository
 import com.environmentmonitor.app.data.ProfileValidator
 import com.environmentmonitor.app.data.SensorSetting
 import com.environmentmonitor.app.data.SensorType
-import com.environmentmonitor.app.ui.ProfileIcons
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +23,7 @@ data class EditorUiState(
     /** Presets can be viewed but not changed. */
     val isPreset: Boolean = false,
     val name: String = "",
-    val icon: String = ProfileIcons.first(),
+    val icon: String = ProfileIcon.DEFAULT.key,
     val settings: Map<SensorType, SensorSetting> = defaultSettings(),
     val nameError: String? = null,
     val settingsError: String? = null,
@@ -39,7 +39,7 @@ data class EditorUiState(
 /** The editable parts of a profile form. */
 data class EditorSnapshot(
     val name: String = "",
-    val icon: String = ProfileIcons.first(),
+    val icon: String = ProfileIcon.DEFAULT.key,
     val settings: Map<SensorType, SensorSetting> = defaultSettings(),
 )
 

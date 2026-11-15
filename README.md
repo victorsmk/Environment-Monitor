@@ -25,6 +25,9 @@ foreground service.
 
 - **Dashboard:** live score (0–100, Good / Fair / Poor), four sensor tiles, advice naming the sensor
   that costs the most points, a profile picker, and Start / Stop session.
+- **Icons:** all drawn in code in one outline style, with no emoji. Each sensor has one (thermometer,
+  droplet, bulb, loudspeaker), and each profile picks one of ten (moon, laptop, dumbbell, book, game
+  controller, lotus, pot, leaf, palette, headphones).
 - **Profiles:** presets (Sleep, Office, Sport) plus your own. Each profile has an ideal range and an
   importance (Off / Low / Medium / High) per sensor, set with a slider and filled buttons. For
   light there are also five chips (Dark, Dim, Soft, Bright, Very bright): tap two and the slider
@@ -216,8 +219,10 @@ git checkout main            # back to the latest
 
 ## Known limitations
 
-- While the app is in development, the database is wiped whenever its schema changes
-  (`fallbackToDestructiveMigration` in `AppContainer.kt`). Remove that before a real release.
+- Moving from database version 4 to 5 (the drawn icons) keeps all data through a real migration, but
+  older versions have none: the database is wiped when it is that old
+  (`fallbackToDestructiveMigration` in `AppContainer.kt`). Remove that before a real release, and
+  write a migration for every schema change from now on.
 - Recording only works while the app process is alive. If Android closes the app, recording pauses
   until it is opened again (background recording is phase 3).
 - The mock sensors produce one new value per second, so recording every second can occasionally store

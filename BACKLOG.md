@@ -86,6 +86,22 @@ score. Agreed ideas, to do together (probably as part of the look refresh):
   the dots, so colour is never the only clue.
 - Dark mode has now been looked at on a real screen (see the next entry).
 
+### Drawn icons instead of emoji
+- Every icon in the app is now drawn in code in one consistent outline style (24 by 24 grid, one
+  stroke weight, round ends), with no emoji and no icon library.
+  - **Sensors:** thermometer, droplet, light bulb and loudspeaker, drawn in each sensor's colour. They
+    replace the coloured dots on the Dashboard tiles, the session summary, the chart titles and the
+    editor cards.
+  - **Profiles:** ten icons to choose from (moon, laptop, dumbbell, book, game controller, lotus, pot,
+    leaf, palette, headphones), shown in the profile list, History, the Dashboard picker, the session
+    screen and the editor's icon picker. Sleep, Office and Sport use the moon, laptop and dumbbell.
+- **Nothing was lost:** a real database migration (version 4 to 5) turns each old emoji into its
+  drawn icon, in both profiles and sessions, and keeps everything else. It was checked on a real
+  phone with real data, and the migration SQL is tested on the device.
+- Every icon is rendered to an image by an on-device test, which fails if one comes out blank or
+  clipped, and saves a contact sheet of the whole set for looking at.
+- Not done: the Dashboard, History and Settings tab icons are still the standard Material ones.
+
 ### Dark mode setting
 - Settings has an **Appearance** section with Use system setting (default), Light and Dark. The
   choice applies immediately inside the app and does not touch the phone's own setting. The status

@@ -24,6 +24,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -54,7 +55,8 @@ import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.ui.advice
 import com.environmentmonitor.app.ui.scoreColor
-import com.environmentmonitor.app.ui.theme.SensorDot
+import com.environmentmonitor.app.ui.icons.ProfileIconImage
+import com.environmentmonitor.app.ui.icons.SensorIcon
 import com.environmentmonitor.app.ui.formatDateTime
 import com.environmentmonitor.app.ui.formatDuration
 import com.environmentmonitor.app.ui.formatRange
@@ -118,8 +120,12 @@ private fun EnvironmentPicker(
                 enabled = !locked && profiles.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
+                if (name != null) {
+                    ProfileIconImage(icon, size = 20.dp, tint = LocalContentColor.current)
+                    Spacer(Modifier.width(10.dp))
+                }
                 Text(
-                    text = if (name != null) "$icon  $name" else "No profile",
+                    text = name ?: "No profile",
                     modifier = Modifier.weight(1f),
                 )
                 if (!locked) Icon(Icons.Default.ArrowDropDown, contentDescription = null)
@@ -127,7 +133,8 @@ private fun EnvironmentPicker(
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 profiles.forEach { profile ->
                     DropdownMenuItem(
-                        text = { Text("${profile.icon}  ${profile.name}") },
+                        text = { Text(profile.name) },
+                        leadingIcon = { ProfileIconImage(profile.icon, size = 20.dp) },
                         onClick = {
                             open = false
                             onSelect(profile)
@@ -249,7 +256,7 @@ private fun SensorTile(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SensorDot(sensor)
+                SensorIcon(sensor, size = 18.dp)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = sensor.label,

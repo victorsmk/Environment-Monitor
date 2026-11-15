@@ -35,6 +35,3 @@ fun Profile.summary(): String = SensorType.entries
         val setting = setting(sensor)
         sensor.formatRange(setting.idealMin, setting.idealMax)
     }
-
-/** Emoji offered in the profile editor. */
-val ProfileIcons = listOf("😴", "💼", "🏃", "📚", "🎮", "🧘", "🍳", "🌿", "🎨", "🎧")

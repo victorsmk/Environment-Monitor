@@ -2,18 +2,23 @@ package com.environmentmonitor.app.ui.profiles
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -52,10 +57,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.Importance
 import com.environmentmonitor.app.data.LightLevel
+import com.environmentmonitor.app.data.ProfileIcon
 import com.environmentmonitor.app.data.SensorSetting
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.ui.DiscardChangesDialog
-import com.environmentmonitor.app.ui.ProfileIcons
+import com.environmentmonitor.app.ui.icons.ProfileIconImage
+import com.environmentmonitor.app.ui.icons.SensorIcon
 import com.environmentmonitor.app.ui.formatRange
 import com.environmentmonitor.app.ui.rangeWords
 import kotlin.math.roundToInt
@@ -171,19 +178,34 @@ fun ProfileEditorScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun IconPicker(selected: String, enabled: Boolean, onSelect: (String) -> Unit) {
+    val current = ProfileIcon.fromKey(selected)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Icon", style = MaterialTheme.typography.labelLarge)
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Icon", style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = current.label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        // Wraps onto a second row, so every icon (and the chosen one) is always in view.
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ProfileIcons.forEach { icon ->
-                val isSelected = icon == selected
+            ProfileIcon.entries.forEach { icon ->
+                val isSelected = icon == current
                 Box(
                     modifier = Modifier
                         .size(48.dp)
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            CircleShape,
+                        )
                         .border(
                             BorderStroke(
                                 width = if (isSelected) 2.dp else 1.dp,
@@ -192,10 +214,18 @@ private fun IconPicker(selected: String, enabled: Boolean, onSelect: (String) ->
                             ),
                             CircleShape,
                         )
-                        .clickable(enabled = enabled) { onSelect(icon) },
+                        .clickable(enabled = enabled) { onSelect(icon.key) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(icon, fontSize = 24.sp)
+                    ProfileIconImage(
+                        key = icon.key,
+                        size = 24.dp,
+                        tint = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
                 }
             }
         }
@@ -219,7 +249,11 @@ private fun SensorSettingCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(sensor.label, style = MaterialTheme.typography.titleMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SensorIcon(sensor, size = 22.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(sensor.label, style = MaterialTheme.typography.titleMedium)
+                }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = if (active) sensor.formatRange(setting.idealMin, setting.idealMax)

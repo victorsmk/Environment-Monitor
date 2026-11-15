@@ -55,7 +55,8 @@ import com.environmentmonitor.app.ui.formatValue
 import com.environmentmonitor.app.ui.headline
 import com.environmentmonitor.app.ui.rangeWords
 import com.environmentmonitor.app.ui.scoreColor
-import com.environmentmonitor.app.ui.theme.SensorDot
+import com.environmentmonitor.app.ui.icons.ProfileIconImage
+import com.environmentmonitor.app.ui.icons.SensorIcon
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -261,7 +262,7 @@ private fun SummaryCard(analysis: SessionAnalysis) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        SensorDot(stats.sensor)
+                        SensorIcon(stats.sensor, size = 18.dp)
                         Spacer(Modifier.width(8.dp))
                         Text(stats.sensor.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -286,8 +287,8 @@ private fun ChartCard(
         ) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 if (sensor != null) {
-                    SensorDot(sensor, size = 12.dp)
-                    Spacer(Modifier.width(8.dp))
+                    SensorIcon(sensor, size = 22.dp)
+                    Spacer(Modifier.width(10.dp))
                 }
                 Text(title, style = MaterialTheme.typography.titleMedium)
             }
@@ -329,7 +330,18 @@ private fun SessionInfoCard(session: Session, readingCount: Int) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            InfoRow("Environment", "${session.profileIcon} ${session.profileName}")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text("Environment", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    ProfileIconImage(session.profileIcon, size = 20.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(session.profileName)
+                }
+            }
             InfoRow("Started", formatDateTime(session.startedAt))
             InfoRow(
                 "Ended",

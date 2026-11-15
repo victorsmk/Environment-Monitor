@@ -13,7 +13,7 @@ object Presets {
     val all: List<Profile> = listOf(
         Profile(
             name = "Sleep",
-            icon = "😴",
+            icon = ProfileIcon.MOON.key,
             isPreset = true,
             temperature = SensorSetting(16f, 19f, HIGH),
             humidity = SensorSetting(40f, 60f, MEDIUM),
@@ -22,7 +22,7 @@ object Presets {
         ),
         Profile(
             name = "Office",
-            icon = "💼",
+            icon = ProfileIcon.LAPTOP.key,
             isPreset = true,
             temperature = SensorSetting(20f, 24f, HIGH),
             humidity = SensorSetting(40f, 60f, MEDIUM),
@@ -31,7 +31,7 @@ object Presets {
         ),
         Profile(
             name = "Sport",
-            icon = "🏃",
+            icon = ProfileIcon.DUMBBELL.key,
             isPreset = true,
             temperature = SensorSetting(16f, 20f, HIGH),
             humidity = SensorSetting(40f, 60f, LOW),
