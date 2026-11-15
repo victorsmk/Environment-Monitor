@@ -27,11 +27,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.RecordingInterval
 import com.environmentmonitor.app.sensors.MockScenario
+import com.environmentmonitor.app.ui.theme.ThemeMode
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel) {
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val interval by viewModel.recordingInterval.collectAsStateWithLifecycle()
     val scenario by viewModel.mockScenario.collectAsStateWithLifecycle()
 
@@ -46,6 +48,20 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            SettingsSection(
+                title = "Appearance",
+                note = "Light or dark colours for the whole app.",
+            ) {
+                ThemeMode.entries.forEach { option ->
+                    ChoiceRow(
+                        selected = option == themeMode,
+                        title = option.label,
+                        subtitle = option.description,
+                        onSelect = { viewModel.selectThemeMode(option) },
+                    )
+                }
+            }
+
             SettingsSection(
                 title = "Recording",
                 note = "How often a running session stores a reading. A change applies to the next " +

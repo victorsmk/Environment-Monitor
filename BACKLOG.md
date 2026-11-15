@@ -84,7 +84,15 @@ score. Agreed ideas, to do together (probably as part of the look refresh):
 - Each colour has a darker variant for light mode and a lighter one for dark mode, and a unit test
   checks that they keep at least a 3:1 contrast against the card colours. The names stay next to
   the dots, so colour is never the only clue.
-- Dark mode has not been looked at on a real screen yet.
+- Dark mode has now been looked at on a real screen (see the next entry).
+
+### Dark mode setting
+- Settings has an **Appearance** section with Use system setting (default), Light and Dark. The
+  choice applies immediately inside the app and does not touch the phone's own setting. The status
+  and navigation bar icons follow the app's choice, and the sensor colours switch to their lighter
+  dark-mode shades with the theme (not with the phone's setting).
+- Checked on a real phone: Settings, Dashboard, the profile editor, and the session charts including
+  the tooltip bubble all read well in dark.
 
 ### Importance buttons give no visual feedback
 - Off / Low / Medium / High in the profile editor now fill with the brand colour when chosen, and

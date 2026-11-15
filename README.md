@@ -47,6 +47,8 @@ foreground service.
   chosen interval, starting the moment the session starts. Recording belongs to the app, not to a
   screen, so it carries on when you switch tabs. Deleting a session deletes its readings.
 - **Settings:**
+  - *Appearance:* Use system setting (the default), Light or Dark. The choice is applied inside the
+    app, so it works whatever the phone is set to, and the status bar icons follow it.
   - *Recording interval:* every second, 5 seconds, 10 seconds (default), 30 seconds, minute or
     5 minutes. Each option shows roughly how many readings an 8 hour night would store. A change
     applies to the next session. A session keeps the interval it started with, so its statistics

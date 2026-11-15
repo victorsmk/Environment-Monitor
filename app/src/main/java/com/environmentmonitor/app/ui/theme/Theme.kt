@@ -5,6 +5,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 // Same palette as the specification slides: deep teal ink, warm paper, teal and amber accents.
@@ -64,13 +66,22 @@ private val DarkColors = darkColorScheme(
     outlineVariant = Color(0xFF3E5E62),
 )
 
+/**
+ * Whether the dark colours are in use right now. Read this (not the phone's own setting) wherever a
+ * colour depends on light or dark, because the user can pick a mode in Settings that differs from
+ * the phone's.
+ */
+val LocalUseDarkTheme = staticCompositionLocalOf { false }
+
 @Composable
 fun EnvironmentMonitorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        content = content,
-    )
+    CompositionLocalProvider(LocalUseDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            content = content,
+        )
+    }
 }

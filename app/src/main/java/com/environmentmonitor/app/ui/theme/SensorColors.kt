@@ -1,7 +1,6 @@
 package com.environmentmonitor.app.ui.theme
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -28,9 +27,9 @@ val SensorType.colors: SensorColorPair
         SensorType.SOUND -> SensorColorPair(light = Color(0xFF7A4FB5), dark = Color(0xFFBFA2F0)) // purple
     }
 
-/** This sensor's colour for the current light or dark theme. */
+/** This sensor's colour for the theme in use (the app's, which may differ from the phone's). */
 @Composable
-fun SensorType.color(): Color = if (isSystemInDarkTheme()) colors.dark else colors.light
+fun SensorType.color(): Color = if (LocalUseDarkTheme.current) colors.dark else colors.light
 
 /** A small filled circle in a sensor's colour, shown before its name. */
 @Composable
