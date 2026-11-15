@@ -21,21 +21,18 @@ Move an item to the plan (see the status table in the README) when we pick it up
   brand colours from the specification slides, or change them? This probably belongs with the
   "polish" step (step 8), but could be done earlier.
 
-## Open questions
-
-### Is lux the right unit for light? (raised after step 7)
-- Temperature and humidity are easy to understand. Light in lux feels less intuitive.
-- Things to weigh when we come back to it:
-  - Lux is the real physical unit and is what the sensor produces, so it is accurate and matches
-    published guidelines (for example for offices).
-  - Most people have no feel for the numbers (a dark bedroom is a few lux, a lit office a few
-    hundred, direct sunlight tens of thousands).
-  - Options: keep lux but add a plain-language label next to the number (for example "Dim",
-    "Bright"), show a 0–100 level like the sound sensor does, or let the user choose. The profile
-    editor and the scoring rules would need to stay consistent whichever we pick.
-- Decision still to make.
-
 ## Done
+
+### Is lux the right unit for light?
+- Decided: keep lux for storage, scoring and profiles, and add a plain word next to it. The scale is
+  0–10 Dark, 10–50 Dim, 50–200 Soft, 200–500 Bright, above 500 Very bright.
+- The words appear on the Dashboard light tile ("Bright" beside the sensor name), under the light
+  slider in the profile editor ("Bright", or "Dim to Bright" for a wide range), and next to the
+  light range on the session screen. A reading exactly on a boundary takes the higher word (10 lux
+  is Dim), and the top end of a range takes the lower one, so the office preset of 300–500 lux reads
+  "Bright".
+- Other options that were considered and not taken: a 0–100 light level like sound, or a setting
+  to choose between the two.
 
 ### A different colour for each chart
 - Each sensor has its own colour: temperature orange, humidity blue, light gold, sound purple. The

@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.environmentmonitor.app.data.LightLevel
 import com.environmentmonitor.app.data.Profile
 import com.environmentmonitor.app.data.RangeStatus
 import com.environmentmonitor.app.data.ScoreLabel
@@ -244,7 +245,10 @@ private fun SensorTile(
         ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 SensorDot(sensor)
                 Spacer(Modifier.width(8.dp))
                 Text(
@@ -252,6 +256,15 @@ private fun SensorTile(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Lux means little to most people, so light also gets a plain word.
+                if (sensor == SensorType.LIGHT && value != null) {
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = LightLevel.of(value).label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(

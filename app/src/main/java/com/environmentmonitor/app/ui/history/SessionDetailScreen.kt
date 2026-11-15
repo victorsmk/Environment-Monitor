@@ -53,6 +53,7 @@ import com.environmentmonitor.app.ui.formatDuration
 import com.environmentmonitor.app.ui.formatRange
 import com.environmentmonitor.app.ui.formatValue
 import com.environmentmonitor.app.ui.headline
+import com.environmentmonitor.app.ui.rangeWords
 import com.environmentmonitor.app.ui.scoreColor
 import com.environmentmonitor.app.ui.theme.SensorDot
 import kotlinx.coroutines.delay
@@ -346,7 +347,9 @@ private fun SessionInfoCard(session: Session, readingCount: Int) {
                 val value = if (setting.importance == Importance.OFF) {
                     "ignored"
                 } else {
-                    "${sensor.formatRange(setting.idealMin, setting.idealMax)} · ${setting.importance.label}"
+                    val words = sensor.rangeWords(setting.idealMin, setting.idealMax)
+                        ?.let { " ($it)" }.orEmpty()
+                    "${sensor.formatRange(setting.idealMin, setting.idealMax)}$words · ${setting.importance.label}"
                 }
                 InfoRow(sensor.label, value)
             }

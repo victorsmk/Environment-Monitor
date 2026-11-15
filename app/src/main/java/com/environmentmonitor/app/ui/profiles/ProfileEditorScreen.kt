@@ -51,6 +51,7 @@ import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.ui.DiscardChangesDialog
 import com.environmentmonitor.app.ui.ProfileIcons
 import com.environmentmonitor.app.ui.formatRange
+import com.environmentmonitor.app.ui.rangeWords
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -213,12 +214,23 @@ private fun SensorSettingCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(sensor.label, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = if (active) sensor.formatRange(setting.idealMin, setting.idealMax)
-                    else "Ignored",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = if (active) sensor.formatRange(setting.idealMin, setting.idealMax)
+                        else "Ignored",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    // For light, say it in words too: "Bright", "Dim to Bright".
+                    val words = if (active) sensor.rangeWords(setting.idealMin, setting.idealMax) else null
+                    if (words != null) {
+                        Text(
+                            text = words,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             RangeSlider(
@@ -242,7 +254,12 @@ private fun SensorSettingCard(
                         enabled = enabled,
                         icon = {},
                     ) {
-                        Text(importance.label, maxLines = 1)
+                        // Smaller text: "Medium" was clipped to "Mediu" on narrower phones.
+                        Text(
+                            text = importance.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                        )
                     }
                 }
             }

@@ -58,7 +58,10 @@ foreground service.
   Off is ignored, Low 1, Medium 2, High 3.
 - Good is 80 or more, Fair 50–79, Poor under 50.
 
-Units in the app: °C, %, lux, and a sound level from 0 to 100.
+Units in the app: °C, %, lux, and a sound level from 0 to 100. Because lux means little to most
+people, light also gets a plain word wherever it is shown: 0–10 Dark, 10–50 Dim, 50–200 Soft,
+200–500 Bright, above 500 Very bright. The words are for display only; scoring, profiles and stored
+readings all use lux.
 
 ## Requirements
 
