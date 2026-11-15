@@ -24,6 +24,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.environmentmonitor.app.ui.history.HistoryScreen
+import com.environmentmonitor.app.ui.history.SessionDetailScreen
 import com.environmentmonitor.app.ui.profiles.NEW_PROFILE_ID
 import com.environmentmonitor.app.ui.profiles.ProfileEditorScreen
 import com.environmentmonitor.app.ui.profiles.ProfilesScreen
@@ -38,6 +40,10 @@ enum class TopLevelDestination(val route: String, val label: String, val icon: I
 private const val PROFILE_EDITOR_ROUTE = "profile/{$PROFILE_ID_ARG}"
 
 private fun profileEditorRoute(id: Long) = "profile/$id"
+
+private const val SESSION_ROUTE = "session/{$SESSION_ID_ARG}"
+
+private fun sessionRoute(id: Long) = "session/$id"
 
 @Composable
 fun AppRoot() {
@@ -88,7 +94,19 @@ fun AppRoot() {
                 )
             }
             composable(TopLevelDestination.History.route) {
-                PlaceholderScreen("History", "Sessions arrive in step 3.")
+                HistoryScreen(
+                    viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                    onOpenSession = { id -> navController.navigate(sessionRoute(id)) },
+                )
+            }
+            composable(
+                route = SESSION_ROUTE,
+                arguments = listOf(navArgument(SESSION_ID_ARG) { type = NavType.LongType }),
+            ) {
+                SessionDetailScreen(
+                    viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable(
                 route = PROFILE_EDITOR_ROUTE,

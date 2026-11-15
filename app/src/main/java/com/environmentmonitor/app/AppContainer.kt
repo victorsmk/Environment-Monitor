@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.environmentmonitor.app.data.AppDatabase
 import com.environmentmonitor.app.data.ProfileRepository
+import com.environmentmonitor.app.data.SessionRepository
 
 /** Hand-wired dependencies, created once per process. */
 class AppContainer(context: Context) {
@@ -15,4 +16,5 @@ class AppContainer(context: Context) {
         .build()
 
     val profileRepository: ProfileRepository = ProfileRepository(database.profileDao())
+    val sessionRepository: SessionRepository = SessionRepository(database.sessionDao())
 }
