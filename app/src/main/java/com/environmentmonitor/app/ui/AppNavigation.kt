@@ -2,11 +2,7 @@ package com.environmentmonitor.app.ui
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
+import com.environmentmonitor.app.ui.icons.AppIcons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -35,10 +31,10 @@ import com.environmentmonitor.app.ui.settings.SettingsScreen
 
 /** Screens reachable from the bottom navigation bar. */
 enum class TopLevelDestination(val route: String, val label: String, val icon: ImageVector) {
-    Dashboard("dashboard", "Dashboard", Icons.Default.Home),
-    Profiles("profiles", "Profiles", Icons.Default.Person),
-    History("history", "History", Icons.AutoMirrored.Filled.List),
-    Settings("settings", "Settings", Icons.Default.Settings),
+    Dashboard("dashboard", "Dashboard", AppIcons.TabDashboard),
+    Profiles("profiles", "Profiles", AppIcons.TabProfiles),
+    History("history", "History", AppIcons.TabHistory),
+    Settings("settings", "Settings", AppIcons.TabSettings),
 }
 
 private const val PROFILE_EDITOR_ROUTE = "profile/{$PROFILE_ID_ARG}"

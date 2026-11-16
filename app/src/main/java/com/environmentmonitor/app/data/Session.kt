@@ -30,6 +30,11 @@ data class Session(
      * later does not affect a session that already exists, so its statistics stay consistent.
      */
     val recordingIntervalSeconds: Int = RecordingInterval.DEFAULT.seconds,
+    /**
+     * The score averaged over the whole session (0-100), filled in once it has ended and has readings.
+     * Null until then. Kept here so the History list can show it without loading every reading.
+     */
+    val averageScore: Int? = null,
 ) {
     val isActive: Boolean get() = endedAt == null
 

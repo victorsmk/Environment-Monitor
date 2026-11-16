@@ -86,5 +86,12 @@ enum class LightLevel(val label: String, val fromLux: Float) {
             val inside = ((lux - level.fromLux) / (level.upperLux - level.fromLux)).coerceIn(0f, 1f)
             return (level.ordinal + inside) / entries.size
         }
+
+        /** The opposite of [position]: the lux at a place (0..1) on the equal-height scale. */
+        fun luxAt(position: Float): Float {
+            val x = position.coerceIn(0f, 1f) * entries.size
+            val level = entries[x.toInt().coerceAtMost(entries.size - 1)]
+            return level.fromLux + (x - level.ordinal) * (level.upperLux - level.fromLux)
+        }
     }
 }

@@ -68,6 +68,9 @@ class AppIconsRenderTest {
                         }
                     }
                     FlowRow(horizontalArrangement = Arrangement.Start) {
+                        listOf("TabDashboard" to AppIcons.TabDashboard, "TabProfiles" to AppIcons.TabProfiles, "TabHistory" to AppIcons.TabHistory, "TabSettings" to AppIcons.TabSettings).forEach { (name, vector) ->
+                            IconCell(name, "ui-$name") { Icon(vector, null, tint = Color.Black, modifier = Modifier.size(48.dp)) }
+                        }
                         IconCell("Help", "ui-help") {
                             Icon(AppIcons.Help, null, tint = Color.Black, modifier = Modifier.size(48.dp))
                         }
@@ -96,7 +99,7 @@ class AppIconsRenderTest {
         showAll()
         val tags = SensorType.entries.map { "sensor-${it.name}" } +
             ProfileIcon.entries.map { "profile-${it.name}" } +
-            "ui-help"
+            "ui-help" + listOf("TabDashboard", "TabProfiles", "TabHistory", "TabSettings").map { "ui-$it" }
         tags.forEach { tag ->
             val bitmap = rule.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
             val share = inkShare(bitmap)

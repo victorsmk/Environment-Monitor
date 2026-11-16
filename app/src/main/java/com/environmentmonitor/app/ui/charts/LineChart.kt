@@ -233,22 +233,6 @@ fun LineChart(
                 val lower = y(band.from)
                 if (lower > upper) {
                     drawRect(band.color, Offset(left, upper), Size(plotWidth, lower - upper))
-                    if (band.label != null) {
-                        val layout = measurer.measure(band.label, bandStyle)
-                        if (layout.size.height <= lower - upper) {
-                            drawText(
-                                layout,
-                                topLeft = Offset(
-                                    right - 4.dp.toPx() - layout.size.width,
-                                    if (band.labelAtTop) {
-                                        upper + 3.dp.toPx()
-                                    } else {
-                                        upper + (lower - upper - layout.size.height) / 2f
-                                    },
-                                ),
-                            )
-                        }
-                    }
                 }
             }
 
@@ -301,6 +285,31 @@ fun LineChart(
                 }
             }
 
+            // Band names go on top of the line, each on a small backing so the line never hides one.
+            bands.forEach { band ->
+                val upper = y(band.to)
+                val lower = y(band.from)
+                if (band.label != null && lower > upper) {
+                    val layout = measurer.measure(band.label, bandStyle)
+                    if (layout.size.height <= lower - upper) {
+                        val tx = right - 4.dp.toPx() - layout.size.width
+                        val ty = if (band.labelAtTop) {
+                            upper + 3.dp.toPx()
+                        } else {
+                            upper + (lower - upper - layout.size.height) / 2f
+                        }
+                        val padX = 4.dp.toPx()
+                        val padY = 1.dp.toPx()
+                        drawRoundRect(
+                            scheme.surface.copy(alpha = 0.75f),
+                            Offset(tx - padX, ty - padY),
+                            Size(layout.size.width + 2 * padX, layout.size.height + 2 * padY),
+                            CornerRadius(6.dp.toPx()),
+                        )
+                        drawText(layout, topLeft = Offset(tx, ty))
+                    }
+                }
+            }
             // The touched reading: a dashed line, a dot and a bubble with the exact value.
             val touchedTime = selectedTime
             val touched = touchedTime?.let { time ->

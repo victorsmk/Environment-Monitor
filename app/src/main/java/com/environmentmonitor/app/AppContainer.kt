@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.environmentmonitor.app.data.AppDatabase
 import com.environmentmonitor.app.data.MIGRATION_4_5
+import com.environmentmonitor.app.data.MIGRATION_5_6
 import com.environmentmonitor.app.data.ProfileRepository
 import com.environmentmonitor.app.data.ReadingRepository
 import com.environmentmonitor.app.data.SessionRepository
@@ -25,7 +26,7 @@ class AppContainer(context: Context) {
     private val database: AppDatabase = Room
         .databaseBuilder(context, AppDatabase::class.java, "environment-monitor.db")
         // Version 4 to 5 keeps all data (emoji icons become drawn icon keys).
-        .addMigrations(MIGRATION_4_5)
+        .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
         // Development only: older versions have no migration and are wiped. Remove before release.
         .fallbackToDestructiveMigration(dropAllTables = true)
         .build()

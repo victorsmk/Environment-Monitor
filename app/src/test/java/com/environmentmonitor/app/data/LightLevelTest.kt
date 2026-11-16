@@ -187,4 +187,15 @@ class LightLevelTest {
         assertEquals(0f, LightLevel.position(-20f), 0f)
         assertEquals(1f, LightLevel.position(50_000f), 0f)
     }
+
+    @Test
+    fun `luxAt is the opposite of position`() {
+        for (lux in 0..1000 step 10) {
+            val back = LightLevel.luxAt(LightLevel.position(lux.toFloat()))
+            assertEquals("lux=$lux", lux.toFloat(), back, 0.01f)
+        }
+        assertEquals(0f, LightLevel.luxAt(0f), 0f)
+        assertEquals(1000f, LightLevel.luxAt(1f), 0f)
+        assertEquals(50f, LightLevel.luxAt(0.4f), 0.01f)
+    }
 }

@@ -20,4 +20,7 @@ interface ReadingDao {
 
     @Query("SELECT COUNT(*) FROM readings WHERE sessionId = :sessionId")
     suspend fun count(sessionId: Long): Int
+
+    @Query("SELECT * FROM readings WHERE sessionId = :sessionId ORDER BY timestamp ASC, id ASC")
+    suspend fun getForSession(sessionId: Long): List<Reading>
 }

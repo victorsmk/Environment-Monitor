@@ -45,6 +45,10 @@ class SessionRepository(
 
     suspend fun delete(id: Long): Boolean = dao.delete(id) > 0
 
+    suspend fun saveAverageScore(id: Long, score: Int) {
+        dao.setAverageScore(id, score)
+    }
+
     companion object {
         const val MAX_NAME_LENGTH = 60
         const val MAX_NOTES_LENGTH = 500

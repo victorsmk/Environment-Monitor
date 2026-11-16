@@ -137,6 +137,59 @@ object AppIcons {
         }
     }
 
+    // --- the four tabs ---
+
+    /** A dial with a needle: the live reading. */
+    val TabDashboard: ImageVector by lazy {
+        drawn("TabDashboard") {
+            moveTo(3.5f, 17f)
+            arcTo(8.5f, 8.5f, 0f, false, true, 20.5f, 17f)
+            line(3.5f, 17f, 5.5f, 17f)
+            line(18.5f, 17f, 20.5f, 17f)
+            line(12f, 17f, 16f, 11f)
+            circle(12f, 17f, 1.3f)
+        }
+    }
+
+    /** Three sliders: a profile is a set of ranges. */
+    val TabProfiles: ImageVector by lazy {
+        drawn("TabProfiles") {
+            line(4f, 7f, 7f, 7f)
+            circle(9f, 7f, 2f)
+            line(11f, 7f, 20f, 7f)
+            line(4f, 12f, 13f, 12f)
+            circle(15f, 12f, 2f)
+            line(17f, 12f, 20f, 12f)
+            line(4f, 17f, 8f, 17f)
+            circle(10f, 17f, 2f)
+            line(12f, 17f, 20f, 17f)
+        }
+    }
+
+    /** A clock. */
+    val TabHistory: ImageVector by lazy {
+        drawn("TabHistory") {
+            circle(12f, 12f, 9f)
+            moveTo(12f, 7f)
+            lineTo(12f, 12f)
+            lineTo(15.5f, 14f)
+        }
+    }
+
+    /** A cog: a ring with eight teeth around a hub. */
+    val TabSettings: ImageVector by lazy {
+        drawn("TabSettings") {
+            circle(12f, 12f, 3f)
+            circle(12f, 12f, 6.8f)
+            for (i in 0 until 8) {
+                val a = i * Math.PI.toFloat() / 4f
+                val c = kotlin.math.cos(a)
+                val s = kotlin.math.sin(a)
+                line(12f + 6.8f * c, 12f + 6.8f * s, 12f + 9.3f * c, 12f + 9.3f * s)
+            }
+        }
+    }
+
     // --- profiles ---
 
     /** A crescent moon (sleep). */

@@ -24,3 +24,10 @@ internal fun iconCase(column: String): String {
     val keys = ProfileIcon.entries.joinToString(", ") { "'${it.key}'" }
     return "CASE $column $legacy ELSE CASE WHEN $column IN ($keys) THEN $column ELSE '${ProfileIcon.DEFAULT.key}' END END"
 }
+
+/** Version 5 to 6: sessions gain an optional average score. Existing sessions get it filled in when History is opened. */
+val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE sessions ADD COLUMN averageScore INTEGER")
+    }
+}

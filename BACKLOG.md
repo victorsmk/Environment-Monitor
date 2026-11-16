@@ -5,25 +5,21 @@ Move an item to the plan (see the status table in the README) when we pick it up
 
 ## Requests
 
-### Light slider on the same five-level scale (raised while building the level picker)
-- The light slider is a straight 0–1000 lux scale, so a range like 0–50 lux (Dark to Dim) squeezes
-  both thumbs against the left edge and is hard to see or drag. The light chart already gives each
-  level the same height; the slider could use the same idea, so each of the five levels takes a
-  fifth of the track.
-
-### A small tidy-up on the light chart (raised while checking the charts)
-- The level names (Dark ... Very bright) sit at the right edge inside each band, and the line can
-  cross them when readings are high. They could move to the left or become fainter.
-
-### A more attractive, more interesting look (raised after step 7)
-- The app feels bland: the colours and designs are all the same.
-- Open questions: how far to go (a colour and typography refresh, or also icons, illustrations,
-  animations, a distinct look for each sensor and for Good / Fair / Poor)? Do we keep the teal
-  brand colours from the specification slides, or change them? This probably belongs with the
-  "polish" step (step 8), but could be done earlier.
-
 ## Done
 
+### Look refresh, second half
+- **Dashboard:** the score card takes a soft tint of Good / Fair / Poor, the ring has rounded ends and
+  sweeps up with a counting number, and each sensor tile has a small gauge: the ideal range shaded,
+  a dot for where the room is now. The ends of the gauge are where that sensor's score hits zero.
+- **Profiles:** one line per sensor, its range on the left and its importance on the right.
+- **History:** rounder cards and a round badge with the session's average score, coloured by
+  Good / Fair / Poor. The average is stored on the session (database version 6, with a migration);
+  sessions from before it get theirs filled in the first time History opens.
+- **Light slider** now uses the same five equal-width levels as the chips and the chart, so Dark and
+  Dim are no longer slivers at the left end.
+- **Light chart:** the level names are drawn on top of the line, each on a small backing, so the line
+  can no longer hide them.
+- **App icon:** a custom adaptive launcher icon (a dial on teal), with a themed variant for Android 13+.
 ### Make "importance" clear
 - **Clearer names:** Ignore / Minor / Important / Critical replace Off / Low / Medium / High. Only the
   shown names changed: the weights are still 0 / 1 / 2 / 3 and what is stored in the database (the
@@ -95,7 +91,7 @@ Move an item to the plan (see the status table in the README) when we pick it up
   phone with real data, and the migration SQL is tested on the device.
 - Every icon is rendered to an image by an on-device test, which fails if one comes out blank or
   clipped, and saves a contact sheet of the whole set for looking at.
-- Not done: the Dashboard, History and Settings tab icons are still the standard Material ones.
+- The four tab icons are drawn in the same style too (a dial, three sliders, a clock, a cog).
 
 ### Dark mode setting
 - Settings has an **Appearance** section with Use system setting (default), Light and Dark. The

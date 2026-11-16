@@ -38,4 +38,7 @@ interface SessionDao {
 
     @Query("DELETE FROM sessions WHERE id = :id")
     suspend fun delete(id: Long): Int
+
+    @Query("UPDATE sessions SET averageScore = :score WHERE id = :id")
+    suspend fun setAverageScore(id: Long, score: Int): Int
 }

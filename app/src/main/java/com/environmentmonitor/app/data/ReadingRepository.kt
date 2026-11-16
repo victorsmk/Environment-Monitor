@@ -20,4 +20,6 @@ class ReadingRepository(private val dao: ReadingDao) : ReadingSink {
     fun observeCount(sessionId: Long): Flow<Int> = dao.observeCount(sessionId)
 
     suspend fun count(sessionId: Long): Int = dao.count(sessionId)
+
+    suspend fun getAll(sessionId: Long): List<Reading> = dao.getForSession(sessionId)
 }

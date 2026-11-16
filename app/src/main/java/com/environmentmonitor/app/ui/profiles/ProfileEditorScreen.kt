@@ -289,18 +289,33 @@ private fun SensorSettingCard(
                 }
             }
 
-            RangeSlider(
-                value = setting.idealMin..setting.idealMax,
-                onValueChange = { range ->
-                    onRangeChange(
-                        snapToStep(range.start, sensor),
-                        snapToStep(range.endInclusive, sensor),
-                    )
-                },
-                valueRange = sensor.min..sensor.max,
-                enabled = enabled && active,
-            )
-
+            if (sensor == SensorType.LIGHT) {
+                // Light uses the same five equal-width levels as the chips and the chart, so Dark
+                // and Dim are not thin slivers at the left end of a straight lux scale.
+                RangeSlider(
+                    value = LightLevel.position(setting.idealMin)..LightLevel.position(setting.idealMax),
+                    onValueChange = { range ->
+                        onRangeChange(
+                            snapToStep(LightLevel.luxAt(range.start), sensor),
+                            snapToStep(LightLevel.luxAt(range.endInclusive), sensor),
+                        )
+                    },
+                    valueRange = 0f..1f,
+                    enabled = enabled && active,
+                )
+            } else {
+                RangeSlider(
+                    value = setting.idealMin..setting.idealMax,
+                    onValueChange = { range ->
+                        onRangeChange(
+                            snapToStep(range.start, sensor),
+                            snapToStep(range.endInclusive, sensor),
+                        )
+                    },
+                    valueRange = sensor.min..sensor.max,
+                    enabled = enabled && active,
+                )
+            }
             // Light also has five plain-word levels: tap two to select everything between them.
             if (sensor == SensorType.LIGHT) {
                 LightLevelPicker(

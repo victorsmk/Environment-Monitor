@@ -32,7 +32,10 @@ object AppViewModelProvider {
             )
         }
         initializer {
-            HistoryViewModel(sessions = app().container.sessionRepository)
+            HistoryViewModel(
+                sessions = app().container.sessionRepository,
+                readings = app().container.readingRepository,
+            )
         }
         initializer {
             SettingsViewModel(app().container.settings)

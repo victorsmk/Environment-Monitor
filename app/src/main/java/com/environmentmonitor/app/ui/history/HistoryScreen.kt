@@ -45,7 +45,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.environmentmonitor.app.data.ScoreLabel
 import com.environmentmonitor.app.data.Session
+import com.environmentmonitor.app.ui.scoreColor
 import com.environmentmonitor.app.ui.icons.ProfileAvatar
 import com.environmentmonitor.app.ui.formatDateTime
 import com.environmentmonitor.app.ui.formatDuration
@@ -168,6 +170,24 @@ private fun SessionCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            // The session's average score, in the colour of its verdict.
+            session.averageScore?.let { score ->
+                val color = scoreColor(ScoreLabel.of(score))
+                Surface(
+                    shape = CircleShape,
+                    color = color.copy(alpha = 0.16f),
+                    modifier = Modifier.size(46.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = score.toString(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = color,
+                        )
+                    }
+                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
