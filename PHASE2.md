@@ -29,7 +29,7 @@ any screen.
 | 9 | Contract and decisions | done |
 | 10 | Connection state in the app (still on mock data) | done |
 | 11 | Missing sensor values (nullable readings, score without the sensor) | done |
-| 12 | `PicoSensorSource` (HTTP client) | |
+| 12 | `PicoSensorSource` (HTTP client) | done |
 | 13 | Settings for the source, discovery | |
 | 14 | Pico firmware, part 1: robustness, no Wi-Fi | |
 | 15 | Pico firmware, part 2: networks and `GET /data` | |
@@ -60,8 +60,8 @@ any screen.
 
 ## Step 12: `PicoSensorSource` (HTTP client)
 - Poll once a second, parse the JSON, map `null` to a missing value, report connection status.
-- Manifest: `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, and a network security config
-  that allows plain HTTP to the local network.
+- Manifest: `INTERNET`, `ACCESS_NETWORK_STATE`, and a network security config that allows plain HTTP
+  to the local network. (`ACCESS_WIFI_STATE` is added in step 13, where discovery needs it.)
 - Bind requests to the Wi-Fi network when needed, so the Pico's own network works while mobile data
   is on (`ConnectivityManager`).
 - **Check:** unit tests against a fake HTTP server: good data, `null` values, timeout, bad JSON,

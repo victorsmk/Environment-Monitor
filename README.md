@@ -205,7 +205,8 @@ a change takes about 20 seconds to settle.
 ```
 app/src/main/java/com/environmentmonitor/app/
   data/        Room entities, DAOs, repositories, scoring engine, validation
-  sensors/     SensorSource interface, the mock implementation, and the SessionRecorder
+  sensors/     SensorSource interface, the mock implementation, the Pico W client (not switched on in
+               the app yet) and the SessionRecorder
   ui/          Compose screens: dashboard/, profiles/, history/, settings/, charts/, theme/, navigation
   AppContainer.kt   hand-wired dependencies (no DI framework)
   AppSettings.kt    small preferences (selected profile, recording interval, demo scenario)

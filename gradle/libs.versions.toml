@@ -34,6 +34,8 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+# The Android version of org.json is not available in plain unit tests, so they use this copy.
+org-json = { group = "org.json", name = "json", version = "20250107" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTest" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }

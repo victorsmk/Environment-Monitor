@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Raspberry Pi Pico W speaks plain HTTP on the local network (home Wi-Fi, the phone's hotspot or
+    the Pico's own network); it cannot do HTTPS. Plain HTTP is therefore allowed. The app talks to no
+    other server, so this does not open anything else up. Documented in docs/pico-protocol.md.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
