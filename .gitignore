@@ -26,3 +26,6 @@ captures/
 # OS
 .DS_Store
 Thumbs.db
+
+# Pico Wi-Fi credentials
+pico/secrets.py

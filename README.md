@@ -1,5 +1,3 @@
-Test
-
 # Environment Monitor
 
 An Android app that rates how good a room is for what you plan to do in it (sleep, office work,
@@ -20,8 +18,9 @@ are in [BACKLOG.md](BACKLOG.md).
 | 7 | Session results and charts | done |
 | 8 | Settings (how often to record, demo data) and polish | done |
 
-Later phases: **2** connect the real Pico W over Wi-Fi, **3** record in the background with a
-foreground service.
+Later phases: **2** connect the real Pico W over Wi-Fi (plan in [PHASE2.md](PHASE2.md), data format
+in [docs/pico-protocol.md](docs/pico-protocol.md), current Pico code in `pico/`), **3** record in
+the background with a foreground service.
 
 ## What the app does
 
