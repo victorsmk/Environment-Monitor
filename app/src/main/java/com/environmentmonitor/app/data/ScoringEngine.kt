@@ -38,8 +38,10 @@ data class EnvironmentScore(
     /** 0–100, rounded. */
     val overall: Int,
     val label: ScoreLabel,
-    /** One entry per sensor that counts (importance not Off), in sensor order. */
+    /** One entry per sensor that counts (importance not Off) and has a value, in sensor order. */
     val sensors: List<SensorScore>,
+    /** Sensors that count in the profile but had no value, so the score was worked out without them. */
+    val missing: List<SensorType> = emptyList(),
 ) {
     /** The sensor costing the most points, or null when everything is in range. */
     val worst: SensorScore?
@@ -66,19 +68,22 @@ object ScoringEngine {
     }
 
     /**
-     * Weighted average of the sensors that count. Returns null when every sensor is Off,
-     * because there is nothing to judge (the profile editor does not allow that).
+     * Weighted average of the sensors that count and have a value. A sensor with no value is left
+     * out, the same way an Ignored one is, so the weights of the others still add up to 100 %
+     * (the missing ones are listed in [EnvironmentScore.missing]). Returns null when nothing is
+     * left to judge: every sensor is Off, or every sensor that counts has no value.
      */
     fun evaluate(settings: Map<SensorType, SensorSetting>, measurement: Measurement): EnvironmentScore? {
-        val active = SensorType.entries.filter {
+        val counted = SensorType.entries.filter {
             (settings[it]?.importance?.weight ?: 0) > 0
         }
+        val active = counted.filter { measurement.value(it) != null }
         val totalWeight = active.sumOf { settings.getValue(it).importance.weight }
         if (totalWeight == 0) return null
 
         val scores = active.map { sensor ->
             val setting = settings.getValue(sensor)
-            val value = measurement.value(sensor)
+            val value = measurement.value(sensor)!!
             val score = sensorScore(sensor, setting, value)
             SensorScore(
                 sensor = sensor,
@@ -92,7 +97,7 @@ object ScoringEngine {
         val overall = (100f - scores.sumOf { it.pointsLost.toDouble() }.toFloat())
             .roundToInt()
             .coerceIn(0, 100)
-        return EnvironmentScore(overall, ScoreLabel.of(overall), scores)
+        return EnvironmentScore(overall, ScoreLabel.of(overall), scores, missing = counted - active.toSet())
     }
 
     private fun distanceOutside(setting: SensorSetting, value: Float): Float = when {

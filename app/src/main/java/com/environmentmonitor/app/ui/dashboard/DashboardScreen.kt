@@ -68,6 +68,7 @@ import com.environmentmonitor.app.data.SensorScore
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.ui.advice
+import com.environmentmonitor.app.ui.missingNote
 import com.environmentmonitor.app.ui.scoreColor
 import com.environmentmonitor.app.ui.icons.ProfileIconImage
 import com.environmentmonitor.app.ui.icons.SensorIcon
@@ -223,7 +224,12 @@ private fun ScoreCard(state: DashboardUiState) {
         ) {
             if (score == null) {
                 Text(
-                    text = if (state.offline) "No score while there is no signal" else "Waiting for the sensors…",
+                    text = when {
+                        state.offline -> "No score while there is no signal"
+                        state.noUsableData ->
+                            "No score: none of the sensors that matter for this profile have a value"
+                        else -> "Waiting for the sensors…"
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 64.dp),
@@ -274,6 +280,15 @@ private fun ScoreCard(state: DashboardUiState) {
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
             )
+            score.missingNote()?.let { note ->
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }
@@ -291,7 +306,7 @@ private fun SensorGrid(state: DashboardUiState) {
                         sensor = sensor,
                         value = measurement?.value(sensor),
                         score = scores?.get(sensor),
-                        ignored = settings != null && scores != null && sensor !in scores,
+                        ignored = settings?.get(sensor)?.importance == Importance.OFF,
                         offline = state.offline,
                         range = settings?.get(sensor)?.let { sensor.formatRange(it.idealMin, it.idealMax) },
                         ideal = settings?.get(sensor)?.let { it.idealMin..it.idealMax },
@@ -375,7 +390,8 @@ private fun SensorTile(
             Text(
                 text = when {
                     ignored -> "Ignored by this profile"
-                    offline && value != null -> "Last reading"
+                    value == null -> "No data from this sensor"
+                    offline -> "Last reading"
                     score == null -> " "
                     score.status == RangeStatus.IN_RANGE -> "In range · ${range.orEmpty()}"
                     score.status == RangeStatus.TOO_LOW -> "Too low · ${range.orEmpty()}"

@@ -34,6 +34,14 @@ data class DashboardUiState(
     val score: EnvironmentScore? = null,
     val connection: ConnectionState = ConnectionState.CONNECTING,
 ) {
+    /**
+     * The sensors answer, but none of the ones that count in this profile has a value, so there is
+     * nothing to score.
+     */
+    val noUsableData: Boolean
+        get() = measurement != null && connection == ConnectionState.CONNECTED &&
+            settings != null && score == null
+
     /** The sensors have stopped answering; [measurement] is then the last reading, not a live one. */
     val offline: Boolean
         get() = connection == ConnectionState.NO_SIGNAL

@@ -1,8 +1,10 @@
 package com.environmentmonitor.app.data
 
 import com.environmentmonitor.app.ui.advice
+import com.environmentmonitor.app.ui.missingNote
 import com.environmentmonitor.app.ui.problemText
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -171,4 +173,86 @@ class ScoringEngineTest {
     }
 
     private fun mid(setting: SensorSetting) = (setting.idealMin + setting.idealMax) / 2f
+
+    // --- a sensor with no value ---
+
+    @Test
+    fun `a sensor with no value is left out and the others fill the whole score`() {
+        // Sleep weights: temperature 3, humidity 2, light 3, sound 3. Light has no value.
+        val result = evaluate(sleep, perfectSleep.copy(light = null))
+        assertEquals(listOf(SensorType.TEMPERATURE, SensorType.HUMIDITY, SensorType.SOUND), result.sensors.map { it.sensor })
+        assertEquals(listOf(SensorType.LIGHT), result.missing)
+        assertEquals(100, result.overall)
+    }
+
+    @Test
+    fun `the weights of the remaining sensors are renormalised`() {
+        // Without light the total weight is 8. Sound (weight 3) at 0 costs 3/8 of the score: 37.5 points.
+        val result = evaluate(sleep, perfectSleep.copy(light = null, sound = 100f))
+        assertEquals(37.5f, result.sensors.first { it.sensor == SensorType.SOUND }.pointsLost, 0.01f)
+        assertEquals(63, result.overall) // 62.5 rounds up
+    }
+
+    @Test
+    fun `a missing sensor is not blamed for lost points`() {
+        val result = evaluate(sleep, perfectSleep.copy(temperature = null))
+        assertNull(result.worst)
+        assertEquals(listOf(SensorType.TEMPERATURE), result.missing)
+    }
+
+    @Test
+    fun `several sensors can be missing at once`() {
+        val result = evaluate(sleep, Measurement(temperature = null, humidity = 50f, light = null, sound = 10f))
+        assertEquals(listOf(SensorType.TEMPERATURE, SensorType.LIGHT), result.missing)
+        assertEquals(2, result.sensors.size)
+        assertEquals(100, result.overall)
+    }
+
+    @Test
+    fun `no score when every sensor that counts has no value`() {
+        // Sport ignores sound, so a lone sound value is not enough to judge.
+        val onlySound = Measurement(temperature = null, humidity = null, light = null, sound = 40f)
+        assertNull(ScoringEngine.evaluate(sport, onlySound))
+    }
+
+    @Test
+    fun `no score for an empty measurement`() {
+        assertNull(ScoringEngine.evaluate(sleep, Measurement(null, null, null, null)))
+    }
+
+    @Test
+    fun `an ignored sensor with no value is not reported as missing`() {
+        // Sport ignores sound.
+        val result = evaluate(sport, Measurement(temperature = 18f, humidity = 50f, light = 500f, sound = null))
+        assertTrue(result.missing.isEmpty())
+    }
+
+    @Test
+    fun `advice says what was measured when something is missing`() {
+        val result = evaluate(sleep, perfectSleep.copy(light = null))
+        assertEquals("Everything measured is in the ideal range", result.advice())
+    }
+
+    @Test
+    fun `the note names the sensors the score is without`() {
+        assertEquals(
+            "Score without light: no data from that sensor",
+            evaluate(sleep, perfectSleep.copy(light = null)).missingNote(),
+        )
+        assertEquals(
+            "Score without temperature and light: no data from those sensors",
+            evaluate(sleep, perfectSleep.copy(temperature = null, light = null)).missingNote(),
+        )
+        assertNull(evaluate(sleep, perfectSleep).missingNote())
+    }
+
+    @Test
+    fun `measurement helpers`() {
+        assertTrue(Measurement(null, null, null, null).isEmpty)
+        assertFalse(perfectSleep.isEmpty)
+        val without = perfectSleep.without(setOf(SensorType.HUMIDITY, SensorType.SOUND))
+        assertNull(without.humidity)
+        assertNull(without.sound)
+        assertEquals(17f, without.temperature)
+    }
 }

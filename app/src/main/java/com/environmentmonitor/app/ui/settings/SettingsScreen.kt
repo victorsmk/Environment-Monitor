@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.RecordingInterval
+import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.sensors.MockScenario
 import com.environmentmonitor.app.ui.theme.ThemeMode
 import java.util.Locale
@@ -39,6 +40,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val interval by viewModel.recordingInterval.collectAsStateWithLifecycle()
     val scenario by viewModel.mockScenario.collectAsStateWithLifecycle()
     val mockOnline by viewModel.mockOnline.collectAsStateWithLifecycle()
+    val missingSensors by viewModel.mockMissingSensors.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
@@ -85,7 +87,9 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 title = "Demo data",
                 note = "Until the real sensor device is connected, the readings are made up. " +
                     "Pick the kind of room they pretend to be in. The values glide there over " +
-                    "about 20 seconds.",
+                    "about 20 seconds. The switches at the bottom pretend the sensor device or one " +
+                    "of its sensors has failed, to see what the app does; they switch off again " +
+                    "when the app restarts.",
             ) {
                 MockScenario.entries.forEach { option ->
                     ChoiceRow(
@@ -102,6 +106,14 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                         "app does. Switches off again when the app restarts.",
                     onChange = { viewModel.setMockOnline(!it) },
                 )
+                SensorType.entries.forEach { sensor ->
+                    SwitchRow(
+                        checked = sensor in missingSensors,
+                        title = "Simulate failed ${sensor.label.lowercase()} sensor",
+                        subtitle = null,
+                        onChange = { viewModel.setMockSensorFailed(sensor, it) },
+                    )
+                }
             }
 
             SettingsSection(title = "About", note = null) {
@@ -185,7 +197,7 @@ private fun ChoiceRow(
 private fun SwitchRow(
     checked: Boolean,
     title: String,
-    subtitle: String,
+    subtitle: String?,
     onChange: (Boolean) -> Unit,
 ) {
     Row(
@@ -197,11 +209,13 @@ private fun SwitchRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
     }

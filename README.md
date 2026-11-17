@@ -63,7 +63,8 @@ the background with a foreground service.
     stay consistent.
   - *Demo data:* which pretend room the mock sensors are in (Comfortable bedroom, Quiet office, Noisy
     room, Hot and bright, or Changing). A short interval plus "Changing" is a quick way to fill the
-    charts for a demo.
+    charts for a demo. Switches below the list pretend the whole device has lost its signal, or
+    that one sensor has failed, to see how the app copes.
 - **Editing safety:** leaving a profile or session screen with unsaved changes asks before discarding
   them, and open dialogs survive rotating the phone.
 

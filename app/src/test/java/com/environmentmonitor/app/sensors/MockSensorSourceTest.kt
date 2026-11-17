@@ -1,5 +1,7 @@
 package com.environmentmonitor.app.sensors
 
+import com.environmentmonitor.app.data.Measurement
+import com.environmentmonitor.app.data.SensorType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -55,5 +57,25 @@ class MockSensorSourceTest {
         advanceTimeBy(1_000)
         assertEquals(ConnectionState.CONNECTED, source.connection.value)
         assertEquals(true, count > 0)
+    }
+
+    @Test
+    fun `a failed sensor reports no value while the others carry on`() = runTest {
+        val missing = MutableStateFlow(setOf(SensorType.LIGHT))
+        val source = MockSensorSource(
+            backgroundScope,
+            MutableStateFlow(MockScenario.QUIET_OFFICE),
+            missing = missing,
+        )
+        val seen = mutableListOf<Measurement>()
+        backgroundScope.launch { source.measurements.collect { seen += it } }
+        advanceTimeBy(2_500)
+        assertEquals(true, seen.isNotEmpty())
+        assertEquals(true, seen.all { it.light == null && it.temperature != null && it.sound != null })
+        assertEquals(ConnectionState.CONNECTED, source.connection.value)
+
+        missing.value = emptySet()
+        advanceTimeBy(1_000)
+        assertEquals(true, seen.last().light != null)
     }
 }

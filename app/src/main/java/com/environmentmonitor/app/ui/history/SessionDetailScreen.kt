@@ -268,6 +268,20 @@ private fun SummaryCard(analysis: SessionAnalysis) {
                     }
                     Text("${stats.inRangePercent} % in range")
                 }
+                if (stats.missingPercent > 0) {
+                    Text(
+                        text = "No data for ${stats.missingPercent} % of the session",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            analysis.noDataSensors.forEach { sensor ->
+                Text(
+                    text = "${sensor.label}: no data at all, so it is not in the score",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

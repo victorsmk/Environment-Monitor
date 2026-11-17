@@ -28,7 +28,7 @@ any screen.
 |---|---|---|
 | 9 | Contract and decisions | done |
 | 10 | Connection state in the app (still on mock data) | done |
-| 11 | Missing sensor values (nullable readings, score without the sensor) | |
+| 11 | Missing sensor values (nullable readings, score without the sensor) | done |
 | 12 | `PicoSensorSource` (HTTP client) | |
 | 13 | Settings for the source, discovery | |
 | 14 | Pico firmware, part 1: robustness, no Wi-Fi | |

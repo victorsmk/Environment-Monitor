@@ -16,10 +16,10 @@ class SessionAnalyzerTest {
 
     private fun reading(
         at: Long,
-        temperature: Float = 17f,
-        humidity: Float = 50f,
-        light: Float = 5f,
-        sound: Float = 10f,
+        temperature: Float? = 17f,
+        humidity: Float? = 50f,
+        light: Float? = 5f,
+        sound: Float? = 10f,
     ) = Reading(
         sessionId = 1,
         timestamp = at,
@@ -142,5 +142,62 @@ class SessionAnalyzerTest {
         val result = analyze(sleep, reading(0, light = 1f), reading(10_000, light = 2f))
         val light = result.sensors.first { it.sensor == SensorType.LIGHT }
         assertEquals(listOf(TimedValue(0, 1f), TimedValue(10_000, 2f)), light.points)
+    }
+
+    // --- readings with a missing sensor ---
+
+    @Test
+    fun `a sensor with no value in some readings is measured on the others`() {
+        val result = analyze(
+            sleep,
+            reading(0),
+            reading(10_000, light = null),
+            reading(20_000, light = 5f),
+            reading(30_000, light = null),
+        )
+        val light = result.sensors.first { it.sensor == SensorType.LIGHT }
+        assertEquals(2, light.points.size)
+        assertEquals(listOf(0L, 20_000L), light.points.map { it.timestamp })
+        assertEquals(50, light.missingPercent)
+        assertEquals(100, light.inRangePercent)
+        // The other sensors have all four readings.
+        assertEquals(0, result.sensors.first { it.sensor == SensorType.TEMPERATURE }.missingPercent)
+        assertEquals(4, result.sensors.first { it.sensor == SensorType.TEMPERATURE }.points.size)
+        assertEquals(4, result.readingCount)
+    }
+
+    @Test
+    fun `the score of a reading leaves the missing sensor out`() {
+        // Perfect apart from light, which is missing: still 100, not dragged down.
+        val result = analyze(sleep, reading(0, light = null), reading(10_000, light = null))
+        assertEquals(100, result.overall)
+        assertEquals(listOf(100f, 100f), result.scorePoints.map { it.value })
+    }
+
+    @Test
+    fun `a sensor that never had a value is listed and left out of the stats`() {
+        val result = analyze(sleep, reading(0, sound = null), reading(10_000, sound = null))
+        assertEquals(listOf(SensorType.SOUND), result.noDataSensors)
+        assertFalse(result.sensors.any { it.sensor == SensorType.SOUND })
+        assertEquals(100, result.overall)
+    }
+
+    @Test
+    fun `a reading with every sensor that counts empty is skipped in the score`() {
+        // Sport ignores sound, so the second reading has nothing to score.
+        val result = analyze(
+            sport,
+            reading(0, temperature = 18f, light = 500f),
+            reading(10_000, temperature = null, humidity = null, light = null, sound = 40f),
+            reading(20_000, temperature = 18f, light = 500f),
+        )
+        assertEquals(listOf(0L, 20_000L), result.scorePoints.map { it.timestamp })
+        assertEquals(3, result.readingCount)
+        assertEquals(33, result.sensors.first { it.sensor == SensorType.TEMPERATURE }.missingPercent)
+    }
+
+    @Test
+    fun `no analysis when nothing could be scored`() {
+        assertNull(SessionAnalyzer.analyze(sport, listOf(reading(0, null, null, null, sound = 40f))))
     }
 }

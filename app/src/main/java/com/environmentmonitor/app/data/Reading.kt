@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 
 /**
  * One stored measurement of a session. A running session gets one about every 10 seconds
- * (roughly 2,900 rows for an 8 hour night).
+ * (roughly 2,900 rows for an 8 hour night). A reading where every sensor was empty is not stored.
  *
  * The score is not stored: it is worked out from the reading and the session's settings snapshot,
  * which never change, so it can always be recomputed.
@@ -30,12 +30,15 @@ data class Reading(
     val sessionId: Long,
     /** Epoch milliseconds. */
     val timestamp: Long,
-    val temperature: Float,
-    val humidity: Float,
-    val light: Float,
-    val sound: Float,
+    /** Each sensor value is null when that sensor had no value at the time (database version 7). */
+    val temperature: Float?,
+    val humidity: Float?,
+    val light: Float?,
+    val sound: Float?,
 ) {
     fun toMeasurement() = Measurement(temperature, humidity, light, sound)
+
+    fun value(sensor: SensorType): Float? = toMeasurement().value(sensor)
 
     companion object {
         fun of(sessionId: Long, measurement: Measurement, timestamp: Long) = Reading(

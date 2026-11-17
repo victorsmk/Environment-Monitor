@@ -25,7 +25,7 @@ class MockModelTest {
         val result = settle(MockScenario.QUIET_OFFICE)
         SensorType.entries.forEach { sensor ->
             val allowed = sensor.tolerance * 0.2f
-            assertEquals(sensor.label, target.value(sensor), result.value(sensor), allowed)
+            assertEquals(sensor.label, target.value(sensor)!!, result.value(sensor)!!, allowed)
         }
     }
 
@@ -34,7 +34,7 @@ class MockModelTest {
         val model = MockModel(Random(3), start = Measurement(17.5f, 50f, 3f, 8f))
         val first = model.next(MockScenario.HOT_AND_BRIGHT)
         // The target is 28 °C, but one second later the room has moved only a little.
-        assertTrue("temperature jumped to ${first.temperature}", first.temperature < 19.5f)
+        assertTrue("temperature jumped to ${first.temperature}", first.temperature!! < 19.5f)
     }
 
     @Test
@@ -44,7 +44,7 @@ class MockModelTest {
             val scenario = MockScenario.entries[i / 100 % MockScenario.entries.size]
             val m = model.next(scenario)
             SensorType.entries.forEach { sensor ->
-                val v = m.value(sensor)
+                val v = m.value(sensor)!!
                 assertTrue("$sensor=$v", v in sensor.min..sensor.max)
             }
         }

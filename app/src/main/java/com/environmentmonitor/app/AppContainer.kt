@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.environmentmonitor.app.data.AppDatabase
 import com.environmentmonitor.app.data.MIGRATION_4_5
 import com.environmentmonitor.app.data.MIGRATION_5_6
+import com.environmentmonitor.app.data.MIGRATION_6_7
 import com.environmentmonitor.app.data.ProfileRepository
 import com.environmentmonitor.app.data.ReadingRepository
 import com.environmentmonitor.app.data.SessionRepository
@@ -26,7 +27,7 @@ class AppContainer(context: Context) {
     private val database: AppDatabase = Room
         .databaseBuilder(context, AppDatabase::class.java, "environment-monitor.db")
         // Version 4 to 5 keeps all data (emoji icons become drawn icon keys).
-        .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+        .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
         // Development only: older versions have no migration and are wiped. Remove before release.
         .fallbackToDestructiveMigration(dropAllTables = true)
         .build()
@@ -38,7 +39,12 @@ class AppContainer(context: Context) {
     val readingRepository: ReadingRepository = ReadingRepository(database.readingDao())
 
     /** Fake sensors for now; the Pico W source replaces this in phase 2. */
-    val sensorSource: SensorSource = MockSensorSource(appScope, settings.mockScenario, settings.mockOnline)
+    val sensorSource: SensorSource = MockSensorSource(
+        appScope,
+        settings.mockScenario,
+        settings.mockOnline,
+        settings.mockMissingSensors,
+    )
 
     /** Stores readings at each running session's own interval. */
     val sessionRecorder: SessionRecorder = SessionRecorder(

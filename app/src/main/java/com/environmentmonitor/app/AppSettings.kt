@@ -2,6 +2,7 @@ package com.environmentmonitor.app
 
 import android.content.Context
 import com.environmentmonitor.app.data.RecordingInterval
+import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.sensors.MockScenario
 import com.environmentmonitor.app.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +48,15 @@ class AppSettings(context: Context) {
 
     fun setMockOnline(online: Boolean) {
         _mockOnline.value = online
+    }
+
+    private val _mockMissingSensors = MutableStateFlow<Set<SensorType>>(emptySet())
+
+    /** Testing switches: the demo sensors in this set report no value. Not saved. */
+    val mockMissingSensors: StateFlow<Set<SensorType>> = _mockMissingSensors
+
+    fun setMockSensorFailed(sensor: SensorType, failed: Boolean) {
+        _mockMissingSensors.value = if (failed) _mockMissingSensors.value + sensor else _mockMissingSensors.value - sensor
     }
 
     private val _themeMode = MutableStateFlow(ThemeMode.fromName(prefs.getString(KEY_THEME, null)))

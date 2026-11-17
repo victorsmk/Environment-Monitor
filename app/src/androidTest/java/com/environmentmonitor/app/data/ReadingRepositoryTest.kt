@@ -85,4 +85,16 @@ class ReadingRepositoryTest {
         readings.record(id, measurement(20f), 1_000)
         assertEquals(1, readings.observeCount(id).first())
     }
+
+    @Test
+    fun aReadingWithAMissingSensorKeepsItsOtherValues() = runBlocking {
+        val id = sessions.start(sleep, "A")!!
+        val partial = Measurement(temperature = 20f, humidity = null, light = 100f, sound = null)
+        readings.record(id, partial, timestamp = 1_000)
+
+        val stored = readings.observe(id).first().single()
+        assertEquals(partial, stored.toMeasurement())
+        assertEquals(null, stored.humidity)
+        assertEquals(null, stored.value(SensorType.SOUND))
+    }
 }

@@ -50,13 +50,17 @@ class MockModel(
         tick++
         val target = scenario.targetAt(tick)
         current = Measurement(
-            temperature = glide(SensorType.TEMPERATURE, current.temperature, target.temperature),
-            humidity = glide(SensorType.HUMIDITY, current.humidity, target.humidity),
-            light = glide(SensorType.LIGHT, current.light, target.light),
-            sound = glide(SensorType.SOUND, current.sound, target.sound),
+            temperature = step(SensorType.TEMPERATURE, current, target),
+            humidity = step(SensorType.HUMIDITY, current, target),
+            light = step(SensorType.LIGHT, current, target),
+            sound = step(SensorType.SOUND, current, target),
         )
         return current
     }
+
+    /** The mock room always has all four values, so none of these is ever null. */
+    private fun step(sensor: SensorType, current: Measurement, target: Measurement): Float =
+        glide(sensor, current.value(sensor)!!, target.value(sensor)!!)
 
     private fun glide(sensor: SensorType, value: Float, target: Float): Float {
         val wobble = (random.nextFloat() - 0.5f) * 2f * sensor.tolerance * WOBBLE
@@ -76,12 +80,14 @@ class MockModel(
  * Fake sensors for phase 1. One model is shared by everything that listens.
  *
  * [online] is a switch for testing: while it is false the pretend device stops answering, the
- * connection becomes [ConnectionState.NO_SIGNAL] and the pretend room stands still.
+ * connection becomes [ConnectionState.NO_SIGNAL] and the pretend room stands still. Sensors in
+ * [missing] report no value, as if they had failed, while the others carry on.
  */
 class MockSensorSource(
     scope: CoroutineScope,
     scenario: StateFlow<MockScenario>,
     online: StateFlow<Boolean> = MutableStateFlow(true),
+    missing: StateFlow<Set<SensorType>> = MutableStateFlow(emptySet()),
     tickMillis: Long = 1_000,
     random: Random = Random.Default,
 ) : SensorSource {
@@ -94,7 +100,7 @@ class MockSensorSource(
     override val measurements: Flow<Measurement> = flow {
         while (true) {
             if (online.value) {
-                emit(model.next(scenario.value))
+                emit(model.next(scenario.value).without(missing.value))
                 _connection.value = ConnectionState.CONNECTED
             } else {
                 _connection.value = ConnectionState.NO_SIGNAL

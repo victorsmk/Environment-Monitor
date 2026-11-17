@@ -21,4 +21,16 @@ fun SessionAnalysis.headline(): String {
 
 /** The one line of advice shown under the score. */
 fun EnvironmentScore.advice(): String =
-    worst?.problemText() ?: "Everything is in the ideal range"
+    worst?.problemText() ?: if (missing.isEmpty()) {
+        "Everything is in the ideal range"
+    } else {
+        "Everything measured is in the ideal range"
+    }
+
+/** "Score without light" or "Score without temperature and sound". Null when nothing is missing. */
+fun EnvironmentScore.missingNote(): String? {
+    if (missing.isEmpty()) return null
+    val names = missing.map { it.label.lowercase() }
+    val list = if (names.size == 1) names.single() else names.dropLast(1).joinToString(", ") + " and " + names.last()
+    return "Score without $list: no data from " + if (names.size == 1) "that sensor" else "those sensors"
+}

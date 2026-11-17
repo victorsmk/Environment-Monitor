@@ -21,7 +21,8 @@ data class RecordingTarget(val sessionId: Long, val intervalMillis: Long)
 /**
  * Saves a reading at the running session's own interval (chosen in Settings when it started).
  * While the sensors have no signal nothing is saved (the session simply has a gap), and the first
- * reading after the signal returns is saved at once.
+ * reading after the signal returns is saved at once. A sensor with no value is saved as empty;
+ * a measurement where all four are empty is not saved at all.
  *
  * It belongs to the app, not to a screen, so recording carries on when the user switches tabs or
  * closes the dashboard. (Keeping it alive when the app is closed is phase 3.)
@@ -58,7 +59,8 @@ class SessionRecorder(
             val measurement = combine(sensors.connection, latest) { state, measurement ->
                 measurement.takeIf { state == ConnectionState.CONNECTED }
             }.filterNotNull().first()
-            sink.record(target.sessionId, measurement, clock())
+            // A reading where every sensor is empty has nothing to keep.
+            if (!measurement.isEmpty) sink.record(target.sessionId, measurement, clock())
             delay(target.intervalMillis)
         }
     }

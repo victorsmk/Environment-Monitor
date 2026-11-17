@@ -31,3 +31,29 @@ val MIGRATION_5_6: Migration = object : Migration(5, 6) {
         db.execSQL("ALTER TABLE sessions ADD COLUMN averageScore INTEGER")
     }
 }
+
+/**
+ * Version 6 to 7: the four sensor columns of a reading may now be empty (a failed sensor must not
+ * throw the rest of the reading away). SQLite cannot drop NOT NULL from a column, so the table is
+ * rebuilt: every existing reading is copied across unchanged.
+ */
+val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        MIGRATION_6_7_SQL.forEach { db.execSQL(it) }
+    }
+}
+
+/** The statements of [MIGRATION_6_7], in order. Kept apart so a test can run them on their own. */
+internal val MIGRATION_6_7_SQL = listOf(
+    "CREATE TABLE readings_new (" +
+        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+        "sessionId INTEGER NOT NULL, " +
+        "timestamp INTEGER NOT NULL, " +
+        "temperature REAL, humidity REAL, light REAL, sound REAL, " +
+        "FOREIGN KEY(sessionId) REFERENCES sessions(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+    "INSERT INTO readings_new (id, sessionId, timestamp, temperature, humidity, light, sound) " +
+        "SELECT id, sessionId, timestamp, temperature, humidity, light, sound FROM readings",
+    "DROP TABLE readings",
+    "ALTER TABLE readings_new RENAME TO readings",
+    "CREATE INDEX index_readings_sessionId_timestamp ON readings (sessionId, timestamp)",
+)

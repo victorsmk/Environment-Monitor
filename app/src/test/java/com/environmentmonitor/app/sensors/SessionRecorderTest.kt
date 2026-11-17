@@ -225,4 +225,28 @@ class SessionRecorderTest {
         runCurrent()
         assertEquals(listOf(20_000L), saved.map { it.at })
     }
+
+    @Test
+    fun `a measurement with a missing sensor is saved with that value empty`() = runTest {
+        val sensors = FakeSensors().also {
+            it.flow.tryEmit(Measurement(temperature = 20f, humidity = null, light = 100f, sound = 20f))
+        }
+        recorder(sensors, MutableStateFlow(1L))
+        runCurrent()
+        assertEquals(1, saved.size)
+        assertEquals(null, saved.single().measurement.humidity)
+        assertEquals(20f, saved.single().measurement.temperature)
+    }
+
+    @Test
+    fun `a measurement where every sensor is empty is not saved`() = runTest {
+        val sensors = FakeSensors().also { it.flow.tryEmit(Measurement(null, null, null, null)) }
+        recorder(sensors, MutableStateFlow(1L))
+        advanceTimeBy(35_000)
+        assertTrue(saved.isEmpty())
+
+        sensors.flow.tryEmit(reading(20f))
+        advanceTimeBy(10_000)
+        assertEquals(1, saved.size)
+    }
 }
