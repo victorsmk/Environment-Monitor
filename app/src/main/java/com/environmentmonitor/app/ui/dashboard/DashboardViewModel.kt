@@ -42,6 +42,10 @@ data class DashboardUiState(
         get() = measurement != null && connection == ConnectionState.CONNECTED &&
             settings != null && score == null
 
+    /** The source is still waiting for its first answer (for example just after switching to the Pico). */
+    val connecting: Boolean
+        get() = connection == ConnectionState.CONNECTING
+
     /** The sensors have stopped answering; [measurement] is then the last reading, not a live one. */
     val offline: Boolean
         get() = connection == ConnectionState.NO_SIGNAL
@@ -77,7 +81,8 @@ class DashboardViewModel(
             profiles = allProfiles,
             selectedProfile = selected,
             activeSession = active,
-            measurement = measurement,
+            // While a source is still connecting, a value left over from the previous source is not shown.
+            measurement = measurement.takeIf { connection != ConnectionState.CONNECTING },
             connection = connection,
             score = if (measurement != null && judgedBy != null && connection == ConnectionState.CONNECTED) {
                 ScoringEngine.evaluate(judgedBy, measurement)

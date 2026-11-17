@@ -38,7 +38,12 @@ object AppViewModelProvider {
             )
         }
         initializer {
-            SettingsViewModel(app().container.settings)
+            SettingsViewModel(
+                settings = app().container.settings,
+                sessions = app().container.sessionRepository,
+                discovery = app().container.picoDiscovery,
+                transport = app().container.picoTransport,
+            )
         }
         initializer {
             DashboardViewModel(

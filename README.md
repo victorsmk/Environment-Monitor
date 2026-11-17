@@ -55,6 +55,9 @@ the background with a foreground service.
   chosen interval, starting the moment the session starts. Recording belongs to the app, not to a
   screen, so it carries on when you switch tabs. Deleting a session deletes its readings.
 - **Settings:**
+  - *Sensors:* demo data or the Raspberry Pi Pico W. For the Pico there is an address field, a
+    *Find Pico* button (searches the local network) and a *Test connection* button. The choice is
+    locked while a session records.
   - *Appearance:* Use system setting (the default), Light or Dark. The choice is applied inside the
     app, so it works whatever the phone is set to, and the status bar icons follow it.
   - *Recording interval:* every second, 5 seconds, 10 seconds (default), 30 seconds, minute or

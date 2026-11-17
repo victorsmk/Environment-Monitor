@@ -9,7 +9,17 @@ import com.environmentmonitor.app.data.MIGRATION_6_7
 import com.environmentmonitor.app.data.ProfileRepository
 import com.environmentmonitor.app.data.ReadingRepository
 import com.environmentmonitor.app.data.SessionRepository
+import com.environmentmonitor.app.sensors.HttpPicoTransport
 import com.environmentmonitor.app.sensors.MockSensorSource
+import com.environmentmonitor.app.sensors.PicoAddressFinder
+import com.environmentmonitor.app.sensors.PicoDiscovery
+import com.environmentmonitor.app.sensors.PicoSensorSource
+import com.environmentmonitor.app.sensors.PicoTransport
+import com.environmentmonitor.app.sensors.SensorSourceKind
+import com.environmentmonitor.app.sensors.SwitchableSensorSource
+import com.environmentmonitor.app.sensors.UdpPicoDiscovery
+import com.environmentmonitor.app.sensors.WifiNetworks
+import com.environmentmonitor.app.sensors.WifiUrlOpener
 import com.environmentmonitor.app.sensors.RecordingTarget
 import com.environmentmonitor.app.sensors.SensorSource
 import com.environmentmonitor.app.sensors.SessionRecorder
@@ -38,13 +48,39 @@ class AppContainer(context: Context) {
     val sessionRepository: SessionRepository = SessionRepository(database.sessionDao())
     val readingRepository: ReadingRepository = ReadingRepository(database.readingDao())
 
-    /** Fake sensors for now; the Pico W source replaces this in phase 2. */
-    val sensorSource: SensorSource = MockSensorSource(
+    private val wifi = WifiNetworks(context)
+
+    /** How the app talks to the Pico: plain HTTP, over the Wi-Fi network when there is one. */
+    val picoTransport: PicoTransport = HttpPicoTransport(open = WifiUrlOpener(wifi))
+
+    /** Looks for the Pico on the local network. */
+    val picoDiscovery: PicoDiscovery = UdpPicoDiscovery(bind = { socket -> wifi.current()?.bindSocket(socket) })
+
+    private val demoSource = MockSensorSource(
         appScope,
         settings.mockScenario,
         settings.mockOnline,
         settings.mockMissingSensors,
     )
+
+    private val picoSource = PicoSensorSource(appScope, settings.picoAddress, picoTransport)
+
+    /** Whichever source is chosen in Settings; the rest of the app only talks to this. */
+    val sensorSource: SensorSource = SwitchableSensorSource(
+        scope = appScope,
+        kind = settings.sourceKind,
+        sources = mapOf(SensorSourceKind.DEMO to demoSource, SensorSourceKind.PICO to picoSource),
+    )
+
+    /** Follows the Pico when its address changes (a hotspot hands out a new one each time). */
+    private val picoAddressFinder = PicoAddressFinder(
+        scope = appScope,
+        kind = settings.sourceKind,
+        connection = sensorSource.connection,
+        address = settings.picoAddress,
+        discovery = picoDiscovery,
+        onFound = settings::setPicoAddress,
+    ).also { it.start() }
 
     /** Stores readings at each running session's own interval. */
     val sessionRecorder: SessionRecorder = SessionRecorder(

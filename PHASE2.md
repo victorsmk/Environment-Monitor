@@ -30,7 +30,7 @@ any screen.
 | 10 | Connection state in the app (still on mock data) | done |
 | 11 | Missing sensor values (nullable readings, score without the sensor) | done |
 | 12 | `PicoSensorSource` (HTTP client) | done |
-| 13 | Settings for the source, discovery | |
+| 13 | Settings for the source, discovery | done |
 | 14 | Pico firmware, part 1: robustness, no Wi-Fi | |
 | 15 | Pico firmware, part 2: networks and `GET /data` | |
 | 16 | Integration on real hardware (home, hotspot, own network) | |
@@ -68,6 +68,9 @@ any screen.
   unknown version, reconnect.
 
 ## Step 13: Settings for the source, discovery
+- (Built: Settings > Sensors. The source is locked while a session records. No `ACCESS_WIFI_STATE`
+  permission was needed. The address is followed automatically when the signal is lost and the Pico
+  has moved.)
 - Choose Pico or Demo data; a "Find Pico" button (UDP broadcast on port 4210); a manual address
   field (default `192.168.4.1`); "Test connection"; the last working address is remembered and tried
   first.

@@ -91,9 +91,11 @@ hotspot"). At start-up, and whenever the connection is lost, the Pico tries them
 addresses), so the app does not rely on a typed IP:
 
 - **Discovery:** the app broadcasts a UDP packet containing `PICO?` to port `4210` on the current
-  Wi-Fi/hotspot network. The Pico replies to the sender with
-  `{"v":1,"name":"pico-meteo","ip":"192.168.43.17","port":80}`. The app saves the address and uses
-  it.
+  Wi-Fi/hotspot network (repeated every 0.7 s for up to 3 s, since UDP can lose a packet). The Pico
+  replies to the sender with `{"v":1,"name":"pico-meteo","ip":"192.168.43.17","port":80}`. The app
+  saves the address the answer came **from** (the one known to work from the phone), plus `port` when it
+  is not 80; `ip` is only informational. `name` and `port` may be left out. The app also searches again
+  by itself every 10 s while the signal is lost and the Pico is selected.
 - **Manual address:** Settings also has an address field (default `192.168.4.1`) as a fallback.
 - **On the Pico's screen:** the OLED shows which network it is on and its IP, so the address can
   always be read and typed in.

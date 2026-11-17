@@ -19,6 +19,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import com.environmentmonitor.app.sensors.SensorSourceKind
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -41,6 +55,10 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val scenario by viewModel.mockScenario.collectAsStateWithLifecycle()
     val mockOnline by viewModel.mockOnline.collectAsStateWithLifecycle()
     val missingSensors by viewModel.mockMissingSensors.collectAsStateWithLifecycle()
+    val sourceKind by viewModel.sourceKind.collectAsStateWithLifecycle()
+    val picoAddress by viewModel.picoAddress.collectAsStateWithLifecycle()
+    val sessionActive by viewModel.sessionActive.collectAsStateWithLifecycle()
+    val picoCheck by viewModel.picoCheck.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
@@ -53,6 +71,35 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            SettingsSection(
+                title = "Sensors",
+                note = if (sessionActive) {
+                    "Locked while a session is recording. Stop the session to change where the " +
+                        "readings come from."
+                } else {
+                    "Where the readings come from."
+                },
+            ) {
+                SensorSourceKind.entries.forEach { option ->
+                    ChoiceRow(
+                        selected = option == sourceKind,
+                        title = option.label,
+                        subtitle = option.description,
+                        enabled = !sessionActive,
+                        onSelect = { viewModel.selectSourceKind(option) },
+                    )
+                }
+                if (sourceKind == SensorSourceKind.PICO) {
+                    PicoControls(
+                        address = picoAddress,
+                        check = picoCheck,
+                        onAddressChange = viewModel::setPicoAddress,
+                        onFind = viewModel::findPico,
+                        onTest = viewModel::testConnection,
+                    )
+                }
+            }
+
             SettingsSection(
                 title = "Appearance",
                 note = "Light or dark colours for the whole app.",
@@ -85,7 +132,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
 
             SettingsSection(
                 title = "Demo data",
-                note = "Until the real sensor device is connected, the readings are made up. " +
+                note = "Made-up readings, used while Demo data is selected under Sensors. " +
                     "Pick the kind of room they pretend to be in. The values glide there over " +
                     "about 20 seconds. The switches at the bottom pretend the sensor device or one " +
                     "of its sensors has failed, to see what the app does; they switch off again " +
@@ -119,7 +166,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             SettingsSection(title = "About", note = null) {
                 Text("Environment Monitor ${appVersion()}", style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    text = "Sensor source: demo data. Connecting the Raspberry Pi Pico W comes in a later phase.",
+                    text = "Sensor source: ${sourceKind.label}.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -171,11 +218,13 @@ private fun ChoiceRow(
     title: String,
     subtitle: String?,
     onSelect: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
+            .alpha(if (enabled) 1f else 0.5f)
+            .selectable(selected = selected, enabled = enabled, onClick = onSelect, role = Role.RadioButton)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -218,5 +267,55 @@ private fun SwitchRow(
             }
         }
         Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
+    }
+}
+
+/** The Pico's address, the two buttons, and what they found out. Shown while the Pico is selected. */
+@Composable
+private fun PicoControls(
+    address: String,
+    check: PicoCheck,
+    onAddressChange: (String) -> Unit,
+    onFind: () -> Unit,
+    onTest: () -> Unit,
+) {
+    // The text is kept here while typing, and saved on every change; the saved value can also change
+    // underneath (a search found a new address), which replaces what is shown.
+    var text by remember(address) { mutableStateOf(address) }
+    val working = check is PicoCheck.Working
+    Column(
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = {
+                text = it
+                onAddressChange(it.trim())
+            },
+            label = { Text("Pico address") },
+            supportingText = { Text("For example 192.168.4.1 (the Pico's own network), or the address on your Wi-Fi.") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = onFind, enabled = !working) { Text("Find Pico") }
+            OutlinedButton(onClick = onTest, enabled = !working && text.isNotBlank()) { Text("Test connection") }
+        }
+        when (check) {
+            PicoCheck.Idle -> Unit
+            is PicoCheck.Working -> Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp))
+                Text(check.text, style = MaterialTheme.typography.bodyMedium)
+            }
+            is PicoCheck.Success -> Text(check.text, style = MaterialTheme.typography.bodyMedium)
+            is PicoCheck.Failure -> Text(
+                check.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }

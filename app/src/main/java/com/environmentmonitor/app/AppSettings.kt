@@ -4,6 +4,7 @@ import android.content.Context
 import com.environmentmonitor.app.data.RecordingInterval
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.sensors.MockScenario
+import com.environmentmonitor.app.sensors.SensorSourceKind
 import com.environmentmonitor.app.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,26 @@ class AppSettings(context: Context) {
     fun selectProfile(id: Long) {
         prefs.edit().putLong(KEY_PROFILE, id).apply()
         _selectedProfileId.value = id
+    }
+
+    private val _sourceKind = MutableStateFlow(SensorSourceKind.fromName(prefs.getString(KEY_SOURCE, null)))
+
+    /** Where the readings come from: made-up demo data or the real Pico W. */
+    val sourceKind: StateFlow<SensorSourceKind> = _sourceKind
+
+    fun setSourceKind(kind: SensorSourceKind) {
+        prefs.edit().putString(KEY_SOURCE, kind.name).apply()
+        _sourceKind.value = kind
+    }
+
+    private val _picoAddress = MutableStateFlow(prefs.getString(KEY_PICO_ADDRESS, null) ?: DEFAULT_PICO_ADDRESS)
+
+    /** The Pico's address, for example "192.168.4.1". Saved, so the last one that worked is tried first. */
+    val picoAddress: StateFlow<String> = _picoAddress
+
+    fun setPicoAddress(address: String) {
+        prefs.edit().putString(KEY_PICO_ADDRESS, address).apply()
+        _picoAddress.value = address
     }
 
     private val _mockScenario = MutableStateFlow(
@@ -87,6 +108,11 @@ class AppSettings(context: Context) {
         const val KEY_INTERVAL = "recording_interval"
         const val KEY_PROFILE = "selected_profile_id"
         const val KEY_SCENARIO = "mock_scenario"
+        const val KEY_SOURCE = "sensor_source"
+        const val KEY_PICO_ADDRESS = "pico_address"
         const val NONE = -1L
+
+        /** Where the Pico's own network puts it (see docs/pico-protocol.md). */
+        const val DEFAULT_PICO_ADDRESS = "192.168.4.1"
     }
 }

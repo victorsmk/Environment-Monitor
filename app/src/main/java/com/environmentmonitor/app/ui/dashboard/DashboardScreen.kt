@@ -308,6 +308,7 @@ private fun SensorGrid(state: DashboardUiState) {
                         score = scores?.get(sensor),
                         ignored = settings?.get(sensor)?.importance == Importance.OFF,
                         offline = state.offline,
+                        connecting = state.connecting,
                         range = settings?.get(sensor)?.let { sensor.formatRange(it.idealMin, it.idealMax) },
                         ideal = settings?.get(sensor)?.let { it.idealMin..it.idealMax },
                         importanceText = settings?.get(sensor)
@@ -329,6 +330,8 @@ private fun SensorTile(
     ignored: Boolean,
     /** No signal: the value is the last one received, so the tile is dimmed. */
     offline: Boolean,
+    /** The source has not answered yet, so there is no value to show. */
+    connecting: Boolean,
     range: String?,
     ideal: ClosedFloatingPointRange<Float>?,
     /** For example "Critical · 27 %": the sensor's importance and its share of the score. Null if ignored. */
@@ -390,6 +393,7 @@ private fun SensorTile(
             Text(
                 text = when {
                     ignored -> "Ignored by this profile"
+                    value == null && connecting -> "Waiting for data…"
                     value == null -> "No data from this sensor"
                     offline -> "Last reading"
                     score == null -> " "
