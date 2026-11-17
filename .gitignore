@@ -29,3 +29,7 @@ Thumbs.db
 
 # Pico Wi-Fi credentials
 pico/secrets.py
+
+# Python (Pico tests on a PC)
+__pycache__/
+*.pyc

@@ -1,719 +1,356 @@
+# PICO METEO: weather station on a Raspberry Pi Pico W.
+#
+# Measures temperature and pressure (BMP280), humidity (DHT22), light (BH1750) and sound level
+# (MAX4466 microphone), shows them on the OLED and prints them on the serial console.
+#
+# Files needed on the Pico: main.py, config.py, logic.py, lightsensor.py (all from this folder), and
+# the libraries bmp280.py and ssd1306.py that were already on the Pico. See pico/README.md.
 
+import sys
+import time
+import _thread
 import machine
 from machine import Pin, I2C, ADC
-import time
-import math
+
 import dht
 import ssd1306
-
 from bmp280 import BMP280
 
-# ============================================================
-# 1. IMPORT BH1750
-# ============================================================
-
-try:
-    from bh1750 import BH1750
-except ImportError:
-    BH1750 = None
-
-
-# ============================================================
-# 2. CONFIGURARE GENERALA
-# ============================================================
-
-# Intervalele de citire (milisecunde)
-
-INTERVAL_BMP = 1000
-INTERVAL_DHT = 2500
-INTERVAL_LUMINA = 1000
-INTERVAL_DISPLAY = 1000
-
-# Microfon
-
-MIC_SAMPLE_INTERVAL_US = 250   # Tinta: 4000 esantioane/secunda
-MIC_WINDOW_MS = 100             # Ferestre RMS de 100 ms
-MIC_REPORT_INTERVAL_MS = 1000  # Agregare si actualizare la 1 secunda
-
-# Calibrare initiala zgomot
-# Aceste valori trebuie ajustate experimental.
-
-NOISE_RMS_QUIET = 80
-NOISE_RMS_LOUD = 2500
-
-# LED - temperatura
-TEMP_LED_ON = 26.0
-TEMP_LED_OFF = 25.5
-
-# Pauza foarte scurta intre iteratiile buclei principale
-MAIN_LOOP_SLEEP_US = 50
-
-
-# ============================================================
-# 3. INITIALIZARE PINI SI INTERFETE
-# ============================================================
-
-i2c_senzori = I2C(
-    0,
-    sda=Pin(0),
-    scl=Pin(1),
-    freq=400000
-)
-
-i2c_oled = I2C(
-    1,
-    sda=Pin(2),
-    scl=Pin(3),
-    freq=400000
-)
-
-led = Pin("LED", Pin.OUT)
-
-senzor_dht = dht.DHT22(Pin(15))
-
-microfon = ADC(Pin(26))
-
-
-# ============================================================
-# 4. INITIALIZARE SENZORI
-# ============================================================
-
-# OLED
-
-try:
-    oled = ssd1306.SSD1306_I2C(128, 64, i2c_oled)
-    print("OLED initializat.")
-
-except Exception as e:
-    print("Eroare OLED:", e)
-    oled = None
-
-
-# BMP280
-
-try:
-    senzor_bmp = BMP280(i2c_senzori)
-    print("BMP280 initializat.")
-
-except Exception as e:
-    print("Eroare BMP280:", e)
-    senzor_bmp = None
-
-
-# BH1750
-
-try:
-    if BH1750:
-        senzor_lumina = BH1750(i2c_senzori)
-        print("BH1750 initializat.")
-    else:
-        senzor_lumina = None
-        print("Libraria BH1750 nu este disponibila.")
-
-except Exception as e:
-    print("Eroare BH1750:", e)
-    senzor_lumina = None
-
-
-print("DHT22 configurat.")
-print("MAX4466 configurat pe GP26.")
-
-
-# ============================================================
-# 5. STRUCTURA DATELOR
-# ============================================================
-
-# Pastram valorile numerice.
-# Acestea vor putea fi folosite ulterior direct pentru JSON/MQTT.
-
-ultimele_date = {
-
-    "temperature": None,
-    "humidity": None,
-    "pressure_hpa": None,
-    "light_lux": None,
-
-    "noise_level": None,
-    "noise_rms": None,
-    "noise_peak_rms": None,
-
-    "noise_samples": 0,
-    "noise_adc_min": None,
-    "noise_adc_max": None
-}
-
-
-# Starea senzorilor
-
-stare_senzori = {
-
-    "bmp280": False,
-    "dht22": False,
-    "bh1750": False
-}
-
-
-# ============================================================
-# 6. RAPORTAREA ERORILOR
-# ============================================================
-
-ultima_raportare_eroare = {}
-
-
-def raporteaza_eroare(nume, eroare):
-
-    acum = time.ticks_ms()
-
-    ultima = ultima_raportare_eroare.get(nume)
-
-    # Nu afisam aceeasi eroare la fiecare citire.
-    # Raportam cel mult o data la 5 secunde.
-
-    if ultima is None or time.ticks_diff(acum, ultima) >= 5000:
-
-        print("[EROARE]", nume, ":", eroare)
-
-        ultima_raportare_eroare[nume] = acum
-
-
-# ============================================================
-# 7. DISPLAY OLED
-# ============================================================
-
-def animatie_boot():
-
-    if oled is None:
-        return
-
-    oled.fill(0)
-
-    oled.rect(0, 0, 128, 64, 1)
-
-    oled.text("PICO METEO", 25, 20)
-    oled.text("Pornire...", 32, 35)
-
-    oled.show()
-
-    time.sleep_ms(500)
-
-
-def actualizare_display():
-
-    if oled is None:
-        return
-
-    oled.fill(0)
-
-    oled.text("PICO METEO", 25, 0)
-
-    # Temperatura
-
-    if ultimele_date["temperature"] is not None:
-        temp = "{:.1f}".format(ultimele_date["temperature"])
-    else:
-        temp = "--"
-
-    oled.text("Temp: " + temp + " C", 0, 10)
-
-    # Umiditate
-
-    if ultimele_date["humidity"] is not None:
-        umid = "{:.1f}".format(ultimele_date["humidity"])
-    else:
-        umid = "--"
-
-    oled.text("Umid: " + umid + " %", 0, 20)
-
-    # Lumina
-
-    if ultimele_date["light_lux"] is not None:
-        lumina = "{:.0f}".format(ultimele_date["light_lux"])
-    else:
-        lumina = "--"
-
-    oled.text("Lux: " + lumina, 0, 30)
-
-    # Zgomot
-
-    if ultimele_date["noise_level"] is not None:
-        zgomot = str(ultimele_date["noise_level"])
-    else:
-        zgomot = "--"
-
-    oled.text("Zgomot: " + zgomot + "/100", 0, 40)
-
-    # RMS
-
-    if ultimele_date["noise_rms"] is not None:
-        rms = "{:.0f}".format(ultimele_date["noise_rms"])
-    else:
-        rms = "--"
-
-    #oled.text("RMS: " + rms, 0, 50)
-
-    oled.show()
-
-
-# ============================================================
-# 8. CITIRE BMP280
-# ============================================================
-
-def citeste_bmp():
-
-    if senzor_bmp is None:
-        return
-
-    try:
-
-        temperatura = float(senzor_bmp.temperature)
-
-        presiune = float(senzor_bmp.pressure) / 100
-
-        ultimele_date["temperature"] = temperatura
-        ultimele_date["pressure_hpa"] = presiune
-
-        stare_senzori["bmp280"] = True
-
-    except Exception as e:
-
-        stare_senzori["bmp280"] = False
-
-        raporteaza_eroare("BMP280", e)
-
-
-# ============================================================
-# 9. CITIRE DHT22
-# ============================================================
-
-def citeste_dht():
-
-    try:
-
-        senzor_dht.measure()
-
-        temperatura = float(senzor_dht.temperature())
-        umiditate = float(senzor_dht.humidity())
-
-        ultimele_date["humidity"] = umiditate
-
-        stare_senzori["dht22"] = True
-
-    except Exception as e:
-
-        stare_senzori["dht22"] = False
-
-        raporteaza_eroare("DHT22", e)
-
-
-# ============================================================
-# 10. CITIRE BH1750
-# ============================================================
-
-def citeste_lumina():
-
-    if senzor_lumina is None:
-        return
-
-    try:
-
-        valoare = senzor_lumina.luminance(
-            BH1750.ONCE_HIRES_1
+import config
+from lightsensor import BH1750
+from logic import Readings, NoiseMeter, age_ms, fmt, build_payload, missing_letters
+
+
+class Station:
+    """All the hardware and the jobs that keep it going. step() is one pass of the main loop."""
+
+    def __init__(self):
+        self.i2c_sensors = I2C(
+            config.I2C_SENSORS_ID, sda=Pin(config.SDA_SENSORS), scl=Pin(config.SCL_SENSORS), freq=config.I2C_FREQ
+        )
+        self.i2c_oled = I2C(
+            config.I2C_OLED_ID, sda=Pin(config.SDA_OLED), scl=Pin(config.SCL_OLED), freq=config.I2C_FREQ
+        )
+        self.dht = dht.DHT22(Pin(config.DHT_PIN))
+        self.mic = ADC(Pin(config.MIC_PIN))
+
+        # Sensors that can fail to start (or break later) are None until they work.
+        self.oled = None
+        self.bmp = None
+        self.light = None
+
+        self.readings = Readings({
+            "temperature": config.MAX_AGE_BMP,
+            "pressure": config.MAX_AGE_BMP,
+            "humidity": config.MAX_AGE_DHT,
+            "temperature_dht": config.MAX_AGE_DHT,
+            "light": config.MAX_AGE_LIGHT,
+        })
+        self.meter = NoiseMeter(
+            window_ms=config.MIC_WINDOW_MS,
+            report_ms=config.MIC_REPORT_MS,
+            min_window_samples=config.MIC_MIN_WINDOW_SAMPLES,
+            quiet=config.NOISE_RMS_QUIET,
+            loud=config.NOISE_RMS_LOUD,
+            max_age=config.MAX_AGE_SOUND,
+        )
+        self._dc = None  # the microphone's resting level, times 1024
+
+        self._last_error_print = {}
+        self._failures = {"BMP280": 0, "BH1750": 0, "OLED": 0}
+
+        self.started = time.ticks_ms()
+        now = self.started
+        # Every job is due at once, the first time round.
+        self._due = {
+            "bmp": now - config.INTERVAL_BMP,
+            "dht": now - config.INTERVAL_DHT,
+            "light": now - config.INTERVAL_LIGHT,
+            "display": now - config.INTERVAL_DISPLAY,
+            "report": now - config.INTERVAL_REPORT,
+            "reinit": now,
+        }
+        self._light_started = None  # when the running light measurement was started, else None
+        self._dht_threaded = False  # True when the DHT22 is read on the second core
+        self._stop = False          # only used by tests, to stop the DHT22 thread
+
+        self.init_missing()
+
+    # ----- starting sensors ------------------------------------------------
+
+    def init_missing(self):
+        """Try to start every sensor that is not running. Called at start-up and every few seconds."""
+        if self.oled is None:
+            try:
+                self.oled = ssd1306.SSD1306_I2C(128, 64, self.i2c_oled)
+                self._failures["OLED"] = 0
+                print("OLED started.")
+            except Exception as e:
+                self.oled = None
+                self._error("OLED", e)
+        if self.bmp is None:
+            try:
+                self.bmp = BMP280(self.i2c_sensors)
+                self._failures["BMP280"] = 0
+                print("BMP280 started.")
+            except Exception as e:
+                self.bmp = None
+                self._error("BMP280", e)
+        if self.light is None:
+            try:
+                self.light = BH1750(self.i2c_sensors)
+                self._failures["BH1750"] = 0
+                print("BH1750 started.")
+            except Exception as e:
+                self.light = None
+                self._error("BH1750", e)
+
+    def _error(self, name, error):
+        """Print an error, but not the same one more than once every 5 seconds."""
+        now = time.ticks_ms()
+        last = self._last_error_print.get(name)
+        if last is None or age_ms(now, last) >= 5000:
+            print("[ERROR]", name, ":", error)
+            self._last_error_print[name] = now
+
+    def _failed(self, name, error):
+        """Count a failed read. After 5 in a row the sensor is dropped so init_missing() starts it afresh."""
+        self._error(name, error)
+        self._failures[name] += 1
+        return self._failures[name] >= 5
+
+    # ----- the microphone --------------------------------------------------
+
+    def sample_burst(self, duration_us):
+        """Sample the microphone for `duration_us`, as close to MIC_SAMPLE_INTERVAL_US apart as possible.
+
+        Returns (number of samples, sum of the squared distances from the resting level). Everything
+        here is small whole numbers on purpose: no floats and no big integers, so there is no memory
+        allocation, and the loop stays fast and steady.
+        """
+        read = self.mic.read_u16
+        ticks_us = time.ticks_us
+        diff = time.ticks_diff
+        add = time.ticks_add
+        step = config.MIC_SAMPLE_INTERVAL_US
+        dc = self._dc
+        n = 0
+        sum_sq = 0
+        t = ticks_us()
+        end = add(t, duration_us)
+        nxt = t
+        while True:
+            t = ticks_us()
+            if diff(end, t) <= 0:
+                break
+            if diff(t, nxt) >= 0:
+                v = read() >> 4  # 12 bits: 0-4095
+                if dc is None:
+                    dc = v << 10
+                rest = dc >> 10
+                dc += v - rest  # the resting level follows the signal slowly (about a quarter of a second)
+                d = v - rest
+                if d > 1000:
+                    d = 1000
+                elif d < -1000:
+                    d = -1000
+                sum_sq += d * d
+                n += 1
+                nxt = add(nxt, step)
+                if diff(t, nxt) > 0:
+                    # Fell behind (another job took long): carry on from now, do not catch up.
+                    nxt = add(t, step)
+        self._dc = dc
+        return n, sum_sq
+
+    # ----- the other sensors -----------------------------------------------
+
+    def read_bmp(self, now):
+        if self.bmp is None:
+            return
+        try:
+            temperature = float(self.bmp.temperature)
+            pressure = float(self.bmp.pressure) / 100
+            self.readings.set("temperature", temperature, now)
+            self.readings.set("pressure", pressure, now)
+            self._failures["BMP280"] = 0
+        except Exception as e:
+            if self._failed("BMP280", e):
+                self.bmp = None
+
+    def read_dht(self):
+        """Read the DHT22. This takes about 270 ms (the sensor library waits), see start_background_jobs()."""
+        try:
+            self.dht.measure()
+            humidity = float(self.dht.humidity())
+            temperature = float(self.dht.temperature())
+            if 0 <= humidity <= 100:
+                now = time.ticks_ms()
+                self.readings.set("humidity", humidity, now)
+                self.readings.set("temperature_dht", temperature, now)
+        except Exception as e:
+            self._error("DHT22", e)  # it fails now and then; the next read is soon, and a value lives 10 s
+
+    def start_background_jobs(self):
+        """Read the DHT22 on the Pico's second core.
+
+        Its library waits about 270 ms for every reading. Done in the main loop that would leave the
+        microphone unheard for that long every few seconds (measured on the Pico: the sample rate swung
+        between 2200 and 4000 per second). On the second core the microphone keeps its steady rate.
+        If the thread cannot start (for example an older run is still alive after Stop in Thonny), the
+        main loop reads the DHT22 itself instead.
+        """
+        try:
+            _thread.start_new_thread(self._dht_loop, ())
+            self._dht_threaded = True
+        except Exception as e:
+            self._dht_threaded = False
+            print("The DHT22 thread could not start (" + str(e) + "), reading it in the main loop instead.")
+            print("After Stop in Thonny use Stop/Restart backend (Ctrl+F2) before running again.")
+
+    def _dht_loop(self):
+        while not self._stop:
+            self.read_dht()
+            time.sleep_ms(config.INTERVAL_DHT)
+
+    def close(self):
+        """Stop the DHT22 thread. Only tests need this; on the Pico it runs until power off."""
+        self._stop = True
+
+    def light_step(self, now):
+        """Start a light measurement when one is due, and collect it a moment later. Never waits."""
+        if self.light is None:
+            return
+        try:
+            if self._light_started is None:
+                if age_ms(now, self._due["light"]) >= config.INTERVAL_LIGHT:
+                    self.light.trigger()
+                    self._light_started = now
+                    self._due["light"] = now
+            elif age_ms(now, self._light_started) >= config.LIGHT_MEASURE_MS:
+                self._light_started = None
+                self.readings.set("light", float(self.light.read()), now)
+                self._failures["BH1750"] = 0
+        except Exception as e:
+            self._light_started = None
+            if self._failed("BH1750", e):
+                self.light = None
+
+    # ----- showing the results ---------------------------------------------
+
+    def payload(self, now):
+        """Everything measured, ready for the app (see docs/pico-protocol.md)."""
+        return build_payload(self.readings, self.meter, now, age_ms(now, self.started))
+
+    def show(self, now):
+        if self.oled is None:
+            return
+        p = self.payload(now)
+        oled = self.oled
+        try:
+            oled.fill(0)
+            oled.text("PICO METEO", 25, 0)
+            oled.text("Temp: " + fmt(p["temperature"], 1) + " C", 0, 10)
+            oled.text("Umid: " + fmt(p["humidity"], 0) + " %", 0, 20)
+            oled.text("Lux: " + fmt(p["light"], 0), 0, 30)
+            oled.text("Zgomot: " + fmt(p["sound"], 0) + "/100", 0, 40)
+            missing = missing_letters(p)
+            oled.text("Senzori: OK" if missing == "" else "Fara: " + missing, 0, 54)
+            oled.show()
+            self._failures["OLED"] = 0
+        except Exception as e:
+            if self._failed("OLED", e):
+                self.oled = None
+
+    def report(self, now):
+        """One line on the serial console."""
+        p = self.payload(now)
+        sound = self.meter.current(now)
+        print(
+            "T=" + fmt(p["temperature"], 1),
+            "H=" + fmt(p["humidity"], 0),
+            "L=" + fmt(p["light"], 0),
+            "S=" + fmt(p["sound"], 0),
+            "| P=" + fmt(p["pressure_hpa"], 1),
+            "Tdht=" + fmt(p["temperature_dht"], 1),
+            "| rms=" + fmt(None if sound is None else sound[1], 1),
+            "peak=" + fmt(None if sound is None else sound[2], 1),
+            "samples/s=" + str(self.meter.samples),
+            "| missing:" + (missing_letters(p) or "-"),
         )
 
-        ultimele_date["light_lux"] = float(valoare)
+    # ----- the main loop ---------------------------------------------------
 
-        stare_senzori["bh1750"] = True
+    def step(self):
+        """One pass: listen to the microphone for a moment, then do whatever job is due."""
+        n, sum_sq = self.sample_burst(config.MIC_BURST_US)
+        now = time.ticks_ms()
+        self.meter.add(n, sum_sq, now)
 
+        self.light_step(now)
+        if age_ms(now, self._due["bmp"]) >= config.INTERVAL_BMP:
+            self._due["bmp"] = now
+            self.read_bmp(now)
+        if not self._dht_threaded and age_ms(now, self._due["dht"]) >= config.INTERVAL_DHT:
+            self._due["dht"] = now
+            self.read_dht()
+        if age_ms(now, self._due["display"]) >= config.INTERVAL_DISPLAY:
+            self._due["display"] = now
+            self.show(now)
+        if age_ms(now, self._due["report"]) >= config.INTERVAL_REPORT:
+            self._due["report"] = now
+            self.report(now)
+        if age_ms(now, self._due["reinit"]) >= config.INTERVAL_REINIT:
+            self._due["reinit"] = now
+            if self.oled is None or self.bmp is None or self.light is None:
+                self.init_missing()
+
+    def boot_screen(self):
+        if self.oled is None:
+            return
+        try:
+            self.oled.fill(0)
+            self.oled.rect(0, 0, 128, 64, 1)
+            self.oled.text("PICO METEO", 25, 20)
+            self.oled.text("Pornire...", 32, 35)
+            self.oled.show()
+            time.sleep_ms(500)
+        except Exception as e:
+            self._error("OLED", e)
+
+
+def run(max_loops=None):
+    """Run the station. `max_loops` is only for tests on a PC; on the Pico it runs for ever."""
+    station = Station()
+    station.boot_screen()
+    station.start_background_jobs()
+
+    watchdog = None
+    if config.USE_WATCHDOG:
+        # From here on, a program that stops answering for WATCHDOG_MS makes the Pico restart.
+        watchdog = machine.WDT(timeout=config.WATCHDOG_MS)
+
+    print("PICO METEO is running.")
+    loops = 0
+    while max_loops is None or loops < max_loops:
+        station.step()
+        if watchdog is not None:
+            watchdog.feed()
+        loops += 1
+    return station
+
+
+def main():
+    try:
+        run()
+    except KeyboardInterrupt:
+        raise  # Stop pressed in Thonny: leave quietly
     except Exception as e:
+        # Something unexpected. Show it, then restart so the station comes back by itself.
+        sys.print_exception(e)
+        time.sleep_ms(1000)
+        machine.reset()
 
-        stare_senzori["bh1750"] = False
 
-        raporteaza_eroare("BH1750", e)
-
-
-# ============================================================
-# 11. CALCUL RMS
-# ============================================================
-
-def calculeaza_rms(suma, suma_patrate, nr_esantioane):
-
-    if nr_esantioane == 0:
-        return 0
-
-    medie = suma / nr_esantioane
-
-    varianta = (
-        suma_patrate / nr_esantioane
-        - medie * medie
-    )
-
-    # Evitam valori negative din cauza erorilor numerice.
-
-    if varianta < 0:
-        varianta = 0
-
-    return math.sqrt(varianta)
-
-
-# ============================================================
-# 12. TRANSFORMARE RMS IN INDICATOR 0-100
-# ============================================================
-
-def calculeaza_nivel_zgomot(rms):
-
-    if rms <= NOISE_RMS_QUIET:
-        return 0
-
-    if rms >= NOISE_RMS_LOUD:
-        return 100
-
-    procent = (
-        (rms - NOISE_RMS_QUIET)
-        / (NOISE_RMS_LOUD - NOISE_RMS_QUIET)
-    ) * 100
-
-    return int(procent + 0.5)
-
-
-# ============================================================
-# 13. INITIALIZARE ACUMULATORI MICROFON
-# ============================================================
-
-# Acumulatori pentru fereastra de 100 ms
-
-mic_window_sum = 0
-mic_window_sum_sq = 0
-mic_window_count = 0
-
-# Acumulatori pentru intreaga secunda
-
-mic_second_sum = 0
-mic_second_sum_sq = 0
-mic_second_count = 0
-
-# Minime si maxime ADC pentru verificarea semnalului
-
-mic_second_min = 65535
-mic_second_max = 0
-
-# Maximul RMS obtinut pe ferestrele de 100 ms
-
-mic_max_window_rms = 0
-
-# Ultimul RMS calculat pe o fereastra
-
-mic_last_window_rms = 0
-
-# Temporizari
-
-timp_fereastra_mic = time.ticks_ms()
-timp_raportare_mic = time.ticks_ms()
-
-urmator_esantion_mic = time.ticks_us()
-
-
-# ============================================================
-# 14. CITIRE CONTINUA MICROFON
-# ============================================================
-
-def preia_esantion_microfon():
-
-    global mic_window_sum
-    global mic_window_sum_sq
-    global mic_window_count
-
-    global mic_second_sum
-    global mic_second_sum_sq
-    global mic_second_count
-
-    global mic_second_min
-    global mic_second_max
-
-    valoare = microfon.read_u16()
-
-    # Fereastra de 100 ms
-
-    mic_window_sum += valoare
-    mic_window_sum_sq += valoare * valoare
-    mic_window_count += 1
-
-    # Fereastra de 1 secunda
-
-    mic_second_sum += valoare
-    mic_second_sum_sq += valoare * valoare
-    mic_second_count += 1
-
-    # Pastram minimul si maximul pentru diagnostic
-
-    if valoare < mic_second_min:
-        mic_second_min = valoare
-
-    if valoare > mic_second_max:
-        mic_second_max = valoare
-
-
-# ============================================================
-# 15. FINALIZARE FEREASTRA RMS DE 100 ms
-# ============================================================
-
-def finalizeaza_fereastra_microfon():
-
-    global mic_window_sum
-    global mic_window_sum_sq
-    global mic_window_count
-
-    global mic_max_window_rms
-    global mic_last_window_rms
-
-    global timp_fereastra_mic
-
-    acum = time.ticks_ms()
-
-    if time.ticks_diff(acum, timp_fereastra_mic) >= MIC_WINDOW_MS:
-
-        if mic_window_count > 0:
-
-            rms = calculeaza_rms(
-                mic_window_sum,
-                mic_window_sum_sq,
-                mic_window_count
-            )
-
-            mic_last_window_rms = rms
-
-            if rms > mic_max_window_rms:
-                mic_max_window_rms = rms
-
-        # Resetam acumulatorii ferestrei.
-
-        mic_window_sum = 0
-        mic_window_sum_sq = 0
-        mic_window_count = 0
-
-        timp_fereastra_mic = acum
-
-
-# ============================================================
-# 16. AGREGARE MICROFON PE O SECUNDA
-# ============================================================
-
-def finalizeaza_raport_microfon():
-
-    global mic_second_sum
-    global mic_second_sum_sq
-    global mic_second_count
-
-    global mic_second_min
-    global mic_second_max
-
-    global mic_max_window_rms
-    global timp_raportare_mic
-
-    global mic_window_sum
-    global mic_window_sum_sq
-    global mic_window_count
-    global timp_fereastra_mic
-    global mic_last_window_rms
-
-    acum = time.ticks_ms()
-
-    if time.ticks_diff(acum, timp_raportare_mic) >= MIC_REPORT_INTERVAL_MS:
-
-        if mic_second_count > 0:
-
-            # RMS pe intreaga secunda
-
-            rms_secunda = calculeaza_rms(
-                mic_second_sum,
-                mic_second_sum_sq,
-                mic_second_count
-            )
-
-            # Maximul RMS pe ferestre de 100 ms
-
-            rms_maxim = mic_max_window_rms
-
-            ultimele_date["noise_rms"] = round(
-                rms_secunda, 1
-            )
-
-            ultimele_date["noise_peak_rms"] = round(
-                rms_maxim, 1
-            )
-
-            # Indicatorul 0-100 se bazeaza pe maximul RMS
-            # din ferestrele de 100 ms.
-
-            ultimele_date["noise_level"] = (
-                calculeaza_nivel_zgomot(rms_maxim)
-            )
-
-            ultimele_date["noise_samples"] = mic_second_count
-
-            ultimele_date["noise_adc_min"] = mic_second_min
-            ultimele_date["noise_adc_max"] = mic_second_max
-
-            print(
-                "Zgomot:",
-                ultimele_date["noise_level"],
-                "/100 | RMS:",
-                round(rms_secunda, 1),
-                "| RMS maxim:",
-                round(rms_maxim, 1),
-                "| Esantioane:",
-                mic_second_count,
-                "| ADC min/max:",
-                mic_second_min,
-                "/",
-                mic_second_max
-            )
-
-        # Resetam acumulatorii pentru urmatoarea secunda.
-
-        mic_second_sum = 0
-        mic_second_sum_sq = 0
-        mic_second_count = 0
-
-        mic_second_min = 65535
-        mic_second_max = 0
-
-        mic_max_window_rms = 0
-
-        timp_raportare_mic = acum
-
-
-# ============================================================
-# 17. LED CU HISTEREZIS
-# ============================================================
-
-led_aprins = False
-
-
-def actualizare_led():
-
-    global led_aprins
-
-    temperatura = ultimele_date["temperature"]
-
-    if temperatura is None:
-        return
-
-    if not led_aprins and temperatura >= TEMP_LED_ON:
-
-        led.on()
-        led_aprins = True
-
-    elif led_aprins and temperatura <= TEMP_LED_OFF:
-
-        led.off()
-        led_aprins = False
-
-
-# ============================================================
-# 18. PORNIRE SISTEM
-# ============================================================
-
-animatie_boot()
-
-acum = time.ticks_ms()
-
-# Setam temporizatoarele astfel incat prima citire
-# sa se execute imediat.
-
-ultim_bmp = time.ticks_add(acum, -INTERVAL_BMP)
-ultim_dht = time.ticks_add(acum, -INTERVAL_DHT)
-ultim_lumina = time.ticks_add(acum, -INTERVAL_LUMINA)
-ultim_display = time.ticks_add(acum, -INTERVAL_DISPLAY)
-
-
-# ============================================================
-# 19. BUCLA PRINCIPALA
-# ============================================================
-
-print("Sistemul PICO METEO a pornit.")
-
-while True:
-
-    # --------------------------------------------------------
-    # A. ESANTIONARE MICROFON
-    # --------------------------------------------------------
-
-    acum_us = time.ticks_us()
-
-    if time.ticks_diff(acum_us, urmator_esantion_mic) >= 0:
-
-        preia_esantion_microfon()
-
-        # Programam urmatoarea citire.
-        # Nu incercam sa recuperam esantioanele ratate.
-
-        urmator_esantion_mic = time.ticks_add(
-            acum_us,
-            MIC_SAMPLE_INTERVAL_US
-        )
-
-    # --------------------------------------------------------
-    # B. PROCESARE FERESTRE MICROFON
-    # --------------------------------------------------------
-
-    finalizeaza_fereastra_microfon()
-
-    finalizeaza_raport_microfon()
-
-    # --------------------------------------------------------
-    # C. CITIRE BMP280
-    # --------------------------------------------------------
-
-    acum = time.ticks_ms()
-
-    if time.ticks_diff(acum, ultim_bmp) >= INTERVAL_BMP:
-
-        citeste_bmp()
-
-        actualizare_led()
-
-        ultim_bmp = time.ticks_ms()
-
-    # --------------------------------------------------------
-    # D. CITIRE DHT22
-    # --------------------------------------------------------
-
-    acum = time.ticks_ms()
-
-    if time.ticks_diff(acum, ultim_dht) >= INTERVAL_DHT:
-
-        citeste_dht()
-
-        ultim_dht = time.ticks_ms()
-
-    # --------------------------------------------------------
-    # E. CITIRE BH1750
-    # --------------------------------------------------------
-
-    acum = time.ticks_ms()
-
-    if time.ticks_diff(acum, ultim_lumina) >= INTERVAL_LUMINA:
-
-        citeste_lumina()
-
-        ultim_lumina = time.ticks_ms()
-
-    # --------------------------------------------------------
-    # F. ACTUALIZARE OLED
-    # --------------------------------------------------------
-
-    acum = time.ticks_ms()
-
-    if time.ticks_diff(acum, ultim_display) >= INTERVAL_DISPLAY:
-
-        actualizare_display()
-
-        ultim_display = time.ticks_ms()
-
-    # --------------------------------------------------------
-    # G. PAUZA FOARTE SCURTA
-    # --------------------------------------------------------
-
-    time.sleep_us(MAIN_LOOP_SLEEP_US)
-
-
+if __name__ == "__main__":
+    main()

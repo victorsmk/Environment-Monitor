@@ -19,7 +19,7 @@ are in [BACKLOG.md](BACKLOG.md).
 | 8 | Settings (how often to record, demo data) and polish | done |
 
 Later phases: **2** connect the real Pico W over Wi-Fi (plan in [PHASE2.md](PHASE2.md), data format
-in [docs/pico-protocol.md](docs/pico-protocol.md), current Pico code in `pico/`), **3** record in
+in [docs/pico-protocol.md](docs/pico-protocol.md), the Pico firmware in `pico/`, see [pico/README.md](pico/README.md)), **3** record in
 the background with a foreground service.
 
 ## What the app does

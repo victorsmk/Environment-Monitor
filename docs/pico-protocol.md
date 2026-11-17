@@ -55,8 +55,9 @@ Rules:
 - `v`, `uptime_ms`, `temperature`, `humidity`, `light` and `sound` must always be present. The
   diagnostic fields may be left out. The app ignores fields it does not know, so new ones can be
   added without changing the version.
-- A value is **`null`** when its sensor failed on the last read, or when the last good value is
-  older than the limit below. The Pico must never send an old value as if it were fresh.
+- A value is **`null`** when its last good value is older than the limit below (a sensor that keeps
+  failing, or has been unplugged). A single failed read does not blank a value: the limits are a few
+  read intervals long. The Pico must never send an old value as if it were fresh.
 - Rounding: temperature, humidity and light to 1 decimal, sound to an integer.
 
 Staleness limits on the Pico (a value older than this becomes `null`):

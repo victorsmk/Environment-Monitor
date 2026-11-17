@@ -31,7 +31,7 @@ any screen.
 | 11 | Missing sensor values (nullable readings, score without the sensor) | done |
 | 12 | `PicoSensorSource` (HTTP client) | done |
 | 13 | Settings for the source, discovery | done |
-| 14 | Pico firmware, part 1: robustness, no Wi-Fi | |
+| 14 | Pico firmware, part 1: robustness, no Wi-Fi | done (running on the Pico) |
 | 15 | Pico firmware, part 2: networks and `GET /data` | |
 | 16 | Integration on real hardware (home, hotspot, own network) | |
 | 17 | Gaps in session results | |
