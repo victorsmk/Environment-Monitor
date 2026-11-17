@@ -6,6 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -24,6 +25,9 @@ class SessionRecorderTest {
     private class FakeSensors : SensorSource {
         val flow = MutableSharedFlow<Measurement>(replay = 1)
         override val measurements: Flow<Measurement> = flow
+
+        val state = MutableStateFlow(ConnectionState.CONNECTED)
+        override val connection: StateFlow<ConnectionState> = state
     }
 
     private val saved = mutableListOf<Saved>()
@@ -169,5 +173,56 @@ class SessionRecorderTest {
         recorder.start()
         runCurrent()
         assertEquals(1, saved.size)
+    }
+
+    @Test
+    fun `nothing is saved while the signal is lost and recording resumes at once when it returns`() = runTest {
+        val sensors = FakeSensors().also { it.flow.tryEmit(reading(20f)) }
+        recorder(sensors, MutableStateFlow(1L))
+        advanceTimeBy(15_000)
+        assertEquals(listOf(0L, 10_000L), saved.map { it.at })
+
+        sensors.state.value = ConnectionState.NO_SIGNAL
+        advanceTimeBy(40_000)
+        // The old value is still replayed by the source, but it must not be saved again.
+        assertEquals(listOf(0L, 10_000L), saved.map { it.at })
+
+        sensors.flow.tryEmit(reading(22f))
+        sensors.state.value = ConnectionState.CONNECTED
+        runCurrent()
+        assertEquals(listOf(0L, 10_000L, 55_000L), saved.map { it.at })
+        assertEquals(22f, saved.last().measurement.temperature)
+
+        // The normal rhythm carries on from the first reading after the gap.
+        advanceTimeBy(10_001)
+        assertEquals(65_000L, saved.last().at)
+    }
+
+    @Test
+    fun `nothing is saved while the sensors are still connecting`() = runTest {
+        val sensors = FakeSensors().also { it.flow.tryEmit(reading(20f)) }
+        sensors.state.value = ConnectionState.CONNECTING
+        recorder(sensors, MutableStateFlow(1L))
+        advanceTimeBy(30_000)
+        assertTrue(saved.isEmpty())
+
+        sensors.state.value = ConnectionState.CONNECTED
+        runCurrent()
+        assertEquals(listOf(30_000L), saved.map { it.at })
+    }
+
+    @Test
+    fun `a session that starts while there is no signal waits for it`() = runTest {
+        val sensors = FakeSensors().also { it.flow.tryEmit(reading(20f)) }
+        sensors.state.value = ConnectionState.NO_SIGNAL
+        val active = MutableStateFlow<Long?>(null)
+        recorder(sensors, active)
+        active.value = 1L
+        advanceTimeBy(20_000)
+        assertTrue(saved.isEmpty())
+
+        sensors.state.value = ConnectionState.CONNECTED
+        runCurrent()
+        assertEquals(listOf(20_000L), saved.map { it.at })
     }
 }

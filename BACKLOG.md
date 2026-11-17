@@ -5,6 +5,12 @@ Move an item to the plan (see the status table in the README) when we pick it up
 
 ## Requests
 
+### Crowded time labels on the session charts
+- Seen on a Samsung Galaxy A54 (Android 16): the labels along the bottom of the charts run together
+  ("9:56:00 PM9:56:30 PM9:57:00 PM") when a session is short, because the labels are in seconds and
+  are wider than the space between them. Not caused by phase 2. Idea: drop every other label, or use
+  the 24-hour format, when they would touch.
+
 ## Done
 
 ### Look refresh, second half

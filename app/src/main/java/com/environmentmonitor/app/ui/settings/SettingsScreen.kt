@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -36,6 +38,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val interval by viewModel.recordingInterval.collectAsStateWithLifecycle()
     val scenario by viewModel.mockScenario.collectAsStateWithLifecycle()
+    val mockOnline by viewModel.mockOnline.collectAsStateWithLifecycle()
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
@@ -92,6 +95,13 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                         onSelect = { viewModel.selectMockScenario(option) },
                     )
                 }
+                SwitchRow(
+                    checked = !mockOnline,
+                    title = "Simulate lost signal",
+                    subtitle = "Pretends the sensor device has stopped answering, to see what the " +
+                        "app does. Switches off again when the app restarts.",
+                    onChange = { viewModel.setMockOnline(!it) },
+                )
             }
 
             SettingsSection(title = "About", note = null) {
@@ -168,5 +178,31 @@ private fun ChoiceRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    checked: Boolean,
+    title: String,
+    subtitle: String,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, onValueChange = onChange, role = Role.Switch)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
     }
 }

@@ -6,8 +6,10 @@ import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.shareIn
 
@@ -70,19 +72,33 @@ class MockModel(
     }
 }
 
-/** Fake sensors for phase 1. One model is shared by everything that listens. */
+/**
+ * Fake sensors for phase 1. One model is shared by everything that listens.
+ *
+ * [online] is a switch for testing: while it is false the pretend device stops answering, the
+ * connection becomes [ConnectionState.NO_SIGNAL] and the pretend room stands still.
+ */
 class MockSensorSource(
     scope: CoroutineScope,
     scenario: StateFlow<MockScenario>,
+    online: StateFlow<Boolean> = MutableStateFlow(true),
     tickMillis: Long = 1_000,
     random: Random = Random.Default,
 ) : SensorSource {
 
     private val model = MockModel(random)
 
+    private val _connection = MutableStateFlow(ConnectionState.CONNECTING)
+    override val connection: StateFlow<ConnectionState> = _connection.asStateFlow()
+
     override val measurements: Flow<Measurement> = flow {
         while (true) {
-            emit(model.next(scenario.value))
+            if (online.value) {
+                emit(model.next(scenario.value))
+                _connection.value = ConnectionState.CONNECTED
+            } else {
+                _connection.value = ConnectionState.NO_SIGNAL
+            }
             delay(tickMillis)
         }
     }.shareIn(scope, SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000), replay = 1)

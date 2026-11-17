@@ -13,6 +13,10 @@ class SettingsViewModel(private val settings: AppSettings) : ViewModel() {
     val recordingInterval: StateFlow<RecordingInterval> = settings.recordingInterval
     val mockScenario: StateFlow<MockScenario> = settings.mockScenario
 
+    val mockOnline: StateFlow<Boolean> = settings.mockOnline
+
+    fun setMockOnline(online: Boolean) = settings.setMockOnline(online)
+
     fun selectThemeMode(mode: ThemeMode) = settings.setThemeMode(mode)
 
     fun selectRecordingInterval(interval: RecordingInterval) = settings.setRecordingInterval(interval)

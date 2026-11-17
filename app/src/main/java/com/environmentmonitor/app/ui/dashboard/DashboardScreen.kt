@@ -46,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -94,6 +95,7 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (state.offline) ConnectionBanner(recording = state.activeSession != null)
             EnvironmentPicker(
                 profiles = state.profiles,
                 name = state.environmentName,
@@ -108,6 +110,36 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                 canStart = state.selectedProfile != null,
                 onStart = viewModel::startSession,
                 onStop = viewModel::stopSession,
+            )
+        }
+    }
+}
+
+/** Shown while the sensors have stopped answering. */
+@Composable
+private fun ConnectionBanner(recording: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = "No signal from the sensors",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = if (recording) {
+                    "The values below are the last ones received. Recording is paused and " +
+                        "continues by itself when the signal returns."
+                } else {
+                    "The values below are the last ones received. The app keeps trying to reconnect."
+                },
+                style = MaterialTheme.typography.bodySmall,
             )
         }
     }
@@ -191,7 +223,7 @@ private fun ScoreCard(state: DashboardUiState) {
         ) {
             if (score == null) {
                 Text(
-                    text = "Waiting for the sensors…",
+                    text = if (state.offline) "No score while there is no signal" else "Waiting for the sensors…",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 64.dp),
@@ -260,6 +292,7 @@ private fun SensorGrid(state: DashboardUiState) {
                         value = measurement?.value(sensor),
                         score = scores?.get(sensor),
                         ignored = settings != null && scores != null && sensor !in scores,
+                        offline = state.offline,
                         range = settings?.get(sensor)?.let { sensor.formatRange(it.idealMin, it.idealMax) },
                         ideal = settings?.get(sensor)?.let { it.idealMin..it.idealMax },
                         importanceText = settings?.get(sensor)
@@ -279,6 +312,8 @@ private fun SensorTile(
     value: Float?,
     score: SensorScore?,
     ignored: Boolean,
+    /** No signal: the value is the last one received, so the tile is dimmed. */
+    offline: Boolean,
     range: String?,
     ideal: ClosedFloatingPointRange<Float>?,
     /** For example "Critical · 27 %": the sensor's importance and its share of the score. Null if ignored. */
@@ -290,7 +325,7 @@ private fun SensorTile(
         else -> scoreColor(ScoreLabel.of(score.score.roundToInt()))
     }
     Card(
-        modifier = modifier,
+        modifier = modifier.alpha(if (offline) 0.5f else 1f),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (ignored) {
@@ -340,6 +375,7 @@ private fun SensorTile(
             Text(
                 text = when {
                     ignored -> "Ignored by this profile"
+                    offline && value != null -> "Last reading"
                     score == null -> " "
                     score.status == RangeStatus.IN_RANGE -> "In range · ${range.orEmpty()}"
                     score.status == RangeStatus.TOO_LOW -> "Too low · ${range.orEmpty()}"

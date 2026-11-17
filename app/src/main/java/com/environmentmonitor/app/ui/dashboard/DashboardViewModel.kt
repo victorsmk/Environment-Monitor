@@ -12,6 +12,7 @@ import com.environmentmonitor.app.data.SensorSetting
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.data.SessionRepository
+import com.environmentmonitor.app.sensors.ConnectionState
 import com.environmentmonitor.app.sensors.SensorSource
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,8 +30,14 @@ data class DashboardUiState(
     /** The running session, if any. While it runs, it decides what the score is judged against. */
     val activeSession: Session? = null,
     val measurement: Measurement? = null,
+    /** Only worked out from fresh readings: there is no score while the sensors are offline. */
     val score: EnvironmentScore? = null,
+    val connection: ConnectionState = ConnectionState.CONNECTING,
 ) {
+    /** The sensors have stopped answering; [measurement] is then the last reading, not a live one. */
+    val offline: Boolean
+        get() = connection == ConnectionState.NO_SIGNAL
+
     /** The ideal ranges in use: the session's snapshot while recording, else the picked profile. */
     val settings: Map<SensorType, SensorSetting>?
         get() = activeSession?.settings() ?: selectedProfile?.settings()
@@ -54,7 +61,8 @@ class DashboardViewModel(
         settings.selectedProfileId,
         sessions.activeSession,
         sensors.measurements.map<Measurement, Measurement?> { it }.onStart { emit(null) },
-    ) { allProfiles, selectedId, active, measurement ->
+        sensors.connection,
+    ) { allProfiles, selectedId, active, measurement, connection ->
         val selected = allProfiles.firstOrNull { it.id == selectedId } ?: allProfiles.firstOrNull()
         val judgedBy = active?.settings() ?: selected?.settings()
         DashboardUiState(
@@ -62,7 +70,8 @@ class DashboardViewModel(
             selectedProfile = selected,
             activeSession = active,
             measurement = measurement,
-            score = if (measurement != null && judgedBy != null) {
+            connection = connection,
+            score = if (measurement != null && judgedBy != null && connection == ConnectionState.CONNECTED) {
                 ScoringEngine.evaluate(judgedBy, measurement)
             } else {
                 null

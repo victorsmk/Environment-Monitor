@@ -37,6 +37,18 @@ class AppSettings(context: Context) {
         _mockScenario.value = scenario
     }
 
+    private val _mockOnline = MutableStateFlow(true)
+
+    /**
+     * Testing switch: false makes the demo sensors stop answering. Not saved, so a restart
+     * always begins with working sensors.
+     */
+    val mockOnline: StateFlow<Boolean> = _mockOnline
+
+    fun setMockOnline(online: Boolean) {
+        _mockOnline.value = online
+    }
+
     private val _themeMode = MutableStateFlow(ThemeMode.fromName(prefs.getString(KEY_THEME, null)))
 
     /** Light, dark, or follow the phone. */

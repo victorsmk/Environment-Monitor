@@ -38,7 +38,7 @@ class AppContainer(context: Context) {
     val readingRepository: ReadingRepository = ReadingRepository(database.readingDao())
 
     /** Fake sensors for now; the Pico W source replaces this in phase 2. */
-    val sensorSource: SensorSource = MockSensorSource(appScope, settings.mockScenario)
+    val sensorSource: SensorSource = MockSensorSource(appScope, settings.mockScenario, settings.mockOnline)
 
     /** Stores readings at each running session's own interval. */
     val sessionRecorder: SessionRecorder = SessionRecorder(
