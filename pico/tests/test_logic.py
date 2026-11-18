@@ -95,8 +95,30 @@ class NoiseLevelTests(unittest.TestCase):
         self.assertEqual(noise_level(2500, 80, 2500), 100)
         self.assertEqual(noise_level(99999, 80, 2500), 100)
 
-    def test_a_straight_line_in_between(self):
-        self.assertEqual(noise_level(1290, 80, 2500), 50)
+    def test_the_scale_is_logarithmic_so_the_geometric_middle_reads_50(self):
+        # sqrt(80 * 2500) = 447.2: halfway in ratio between quiet and loud
+        self.assertEqual(noise_level(447, 80, 2500), 50)
+
+    def test_every_doubling_adds_the_same_number_of_points(self):
+        # quiet 50, loud 1600 is five doublings: each adds 20 points
+        self.assertEqual(
+            [noise_level(v, 50, 1600) for v in (100, 200, 400, 800)],
+            [20, 40, 60, 80],
+        )
+
+    def test_a_quiet_voice_is_not_squashed_next_to_a_shout(self):
+        # Measured values: quiet room 90, a normal voice 127-164, a shout 1200+; scale 90..2000.
+        voice = noise_level(145, 90, 2000)
+        shout = noise_level(1200, 90, 2000)
+        self.assertGreaterEqual(voice, 10)
+        self.assertLessEqual(voice, 25)
+        self.assertGreater(shout, 75)
+
+    def test_levels_never_go_backwards_as_the_sound_grows(self):
+        levels = [noise_level(v, 90, 2000) for v in range(0, 2500, 10)]
+        self.assertEqual(levels, sorted(levels))
+        self.assertEqual(levels[0], 0)
+        self.assertEqual(levels[-1], 100)
 
     def test_no_value_is_the_quietest(self):
         self.assertEqual(noise_level(None, 80, 2500), 0)

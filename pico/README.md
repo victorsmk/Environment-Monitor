@@ -13,11 +13,47 @@ prints them on the serial console. Phase 2 step 15 adds Wi-Fi and the `GET /data
 | `config.py` | Pins, intervals, how old a value may get, sound calibration, watchdog | yes |
 | `logic.py` | Freshness of values, the sound level, the JSON for the app (no hardware) | yes |
 | `lightsensor.py` | BH1750 driver that never makes the program wait | yes |
-| `secrets_example.py` | Template for the Wi-Fi settings (used from step 15) | later, as `secrets.py` |
+| `bmp280.py` | BMP280 driver written for this project (one reading on request, exact integer maths) | yes |
+| `wifi.py` | Joins the known networks, opens the Pico's own network if none works | yes |
+| `server.py` | `GET /data` over HTTP and the answer to "where is the Pico?" | yes |
+| `secrets.py` | Your Wi-Fi settings, see `secrets_example.py` (never committed) | yes, you create it |
+| `deploy.py` | Copies all of the above to a Pico from the PC (see below) | no |
 | `tests/` | Tests that run on a PC | no |
 
-Also needed on the Pico, and already there: `bmp280.py` and `ssd1306.py`. The old `bh1750.py` is no
-longer used (`lightsensor.py` replaces it) and can stay or be deleted.
+The display library `ssd1306` is not part of this folder: `deploy.py` installs it from the MicroPython
+package index. The old `bh1750.py` is no longer used (`lightsensor.py` replaces it).
+
+### Wi-Fi settings (`secrets.py`)
+
+Either layout works. The first is the one to use from now on; the others are understood so that an
+older file keeps working:
+
+```python
+NETWORKS = [("home-wifi", "password"), ("my-phone", "password")]   # tried in this order
+AP_PASSWORD = "at-least-8-characters"                               # for the Pico's own network
+```
+
+or `secrets = {"ssid": "...", "password": "..."}`, or plain `SSID = "..."` and `PASSWORD = "..."`. Without
+`AP_PASSWORD` the Pico never opens a network of its own (it will not open an unprotected one).
+
+## A new or replacement board
+
+1. Hold **BOOTSEL** while plugging the Pico into the PC. A drive called `RPI-RP2` appears.
+2. Copy the MicroPython file for the **Pico W** onto it (from <https://micropython.org/download/RPI_PICO_W/>;
+   this project was tested on **v1.28.0**). The drive disappears by itself and the Pico restarts.
+3. From the repository root, with `pip install mpremote` done once:
+
+   ```
+   python pico/deploy.py --port COM13
+   ```
+
+   (use your port; leave `--port` out to let it search). This installs the display library and copies the
+   program, with the watchdog **off**, which is the safe setting while you are still working on it.
+4. Check the console (`python -m mpremote connect COM13 repl`, leave with Ctrl-]) and the checks below.
+5. When all is well, run `python pico/deploy.py --watchdog` once to switch the watchdog on.
+
+Flashing MicroPython does **not** erase the Pico's file storage. If the board has files from earlier
+projects they stay, and a full storage stops `deploy.py` from copying; back them up first (`mpremote cp -r : backup/`).
 
 Wiring (unchanged): BMP280 and BH1750 on I2C0 (GP0 SDA, GP1 SCL), OLED on I2C1 (GP2 SDA, GP3 SCL),
 DHT22 on GP15, microphone on GP26. Change them in `config.py` if needed.
@@ -63,6 +99,35 @@ restarts, no errors, no value missing. What to expect:
 5. Leave it for an hour with the watchdog on: it must not restart by itself (no `PICO METEO is
    running.` line appearing again). Done for 4 minutes so far.
 
+## Fault test on the real board
+
+`fault_test.py` makes each sensor fail on purpose, one after the other (the BMP280, the BH1750, the DHT22,
+then the display), for 15 to 30 seconds each, and checks that the station copes: the failed value must turn
+to `--` while the others carry on, and come back by itself afterwards. Nothing is unplugged: the failures
+are injected into the program's own sensor code, but everything else is the real thing. It takes about
+3 minutes:
+
+```
+python -m mpremote connect COM13 run pico/fault_test.py
+```
+
+It prints `CHECK ok` or `CHECK FAIL` lines and a verdict, and the Pico restarts by itself afterwards (the
+watchdog). Last run on the real Pico W: 9 of 9 checks passed.
+
+## When the network disappears (measured on the real board)
+
+The Wi-Fi chip does **not** notice by itself that its access point has gone: it only finds out when its own
+packets stop being acknowledged, and an idle Pico sends nothing. After the phone's hotspot was switched off
+the Pico went on reporting "connected" for minutes (with a signal strength "read" from neighbouring routers).
+So while it is joined, `wifi.py` tries to open a TCP connection to the gateway every 10 seconds
+(`WIFI_KEEPALIVE_MS`) and ignores the result; the unacknowledged packets make the chip report the loss.
+Now the Pico notices a vanished hotspot within about 10 seconds, tries it for 10 seconds, and moves on to the
+next network in `secrets.py` (the home Wi-Fi) or opens its own network.
+
+The address is read again while joined, because moving from one network to another leaves the old address in
+place until the new one arrives. `link_probe.py` is the diagnostic that was used to find all this: it joins the
+first network and prints what the chip reports while you switch the hotspot off.
+
 ## The DHT22 runs on the second core
 
 The DHT22 library waits about 270 ms for every reading. In the main loop that left the microphone unheard
@@ -74,10 +139,14 @@ and reads the DHT22 in the main loop, which still works but with the gaps. After
 ## Sound calibration
 
 The sound level is 0 at `NOISE_RMS_QUIET` and 100 at `NOISE_RMS_LOUD` (in `config.py`, 16-bit ADC
-units, the same ones the first version used, 80 and 2500). Read `rms` and `peak` on the console in the
-quietest room you will use and in a really loud one, and put those two numbers there. (On the first
-run here the room read `rms` about 630 with the old numbers, level 24, so `NOISE_RMS_QUIET` needs to go up
-to about that value; calibrating it is part of step 16.)
+units, the same ones the first version used). Between them the scale is logarithmic, like decibels: every
+doubling of the sound adds the same number of points. Read `peak` on the console in the quietest room
+you will use and for a loud sound, and put those two numbers there.
+
+Measured on the real Pico (the peak of a 100 ms window): silence 75 (never above 92), normal talking 127
+(up to 164), a loud voice or music 210 (up to 2700), shouting or hard claps about 1200 (up to 2300). The
+values in `config.py` (quiet 90, loud 2000) come from these. The microphone is not very sensitive: turning
+up the gain trimmer on the MAX4466 board would make quiet sounds stand out more from the noise floor.
 
 ## Tests on a PC
 

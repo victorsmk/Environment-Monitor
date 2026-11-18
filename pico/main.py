@@ -1,10 +1,12 @@
 # PICO METEO: weather station on a Raspberry Pi Pico W.
 #
 # Measures temperature and pressure (BMP280), humidity (DHT22), light (BH1750) and sound level
-# (MAX4466 microphone), shows them on the OLED and prints them on the serial console.
+# (MAX4466 microphone), shows them on the OLED, prints them on the serial console and answers the
+# phone app over Wi-Fi (GET /data).
 #
-# Files needed on the Pico: main.py, config.py, logic.py, lightsensor.py (all from this folder), and
-# the libraries bmp280.py and ssd1306.py that were already on the Pico. See pico/README.md.
+# Files needed on the Pico: main.py, config.py, logic.py, lightsensor.py, wifi.py, server.py (all from
+# this folder), secrets.py (the Wi-Fi settings) and the libraries bmp280.py and ssd1306.py that were
+# already on the Pico. See pico/README.md.
 
 import sys
 import time
@@ -20,6 +22,18 @@ import config
 from lightsensor import BH1750
 from logic import Readings, NoiseMeter, age_ms, fmt, build_payload, missing_letters
 
+try:
+    import secrets as secrets_module  # the Wi-Fi settings, see secrets_example.py
+except ImportError:
+    secrets_module = None
+try:
+    import wifi
+    from server import HttpServer, DiscoveryResponder
+except ImportError:  # a Pico without Wi-Fi: everything except the network still works
+    wifi = None
+
+
+HEARTBEAT = "|/-\\"  # the four positions of the heartbeat character: | / - 
 
 class Station:
     """All the hardware and the jobs that keep it going. step() is one pass of the main loop."""
@@ -59,6 +73,16 @@ class Station:
         self._last_error_print = {}
         self._failures = {"BMP280": 0, "BH1750": 0, "OLED": 0}
 
+        # The network: Wi-Fi, the /data page, and the answer to "where is the Pico?". None without Wi-Fi.
+        self.wifi = None
+        self.http = None
+        self.discovery = None
+        if config.USE_NETWORK and wifi is not None:
+            networks, ap_password = wifi.load_secrets(secrets_module)
+            self.wifi = wifi.WifiManager(networks, ap_password)
+            self.http = HttpServer(self.payload)
+            self.discovery = DiscoveryResponder(lambda: self.wifi.ip or "")
+
         self.started = time.ticks_ms()
         now = self.started
         # Every job is due at once, the first time round.
@@ -71,6 +95,7 @@ class Station:
             "reinit": now,
         }
         self._light_started = None  # when the running light measurement was started, else None
+        self._beat = 0              # counts display updates, for the heartbeat in the corner of the screen
         self._dht_threaded = False  # True when the DHT22 is read on the second core
         self._stop = False          # only used by tests, to stop the DHT22 thread
 
@@ -169,8 +194,8 @@ class Station:
         if self.bmp is None:
             return
         try:
-            temperature = float(self.bmp.temperature)
-            pressure = float(self.bmp.pressure) / 100
+            temperature, pressure = self.bmp.measure()  # one reading gives both
+            pressure = pressure / 100  # Pa to hPa
             self.readings.set("temperature", temperature, now)
             self.readings.set("pressure", pressure, now)
             self._failures["BMP280"] = 0
@@ -214,8 +239,47 @@ class Station:
             time.sleep_ms(config.INTERVAL_DHT)
 
     def close(self):
-        """Stop the DHT22 thread. Only tests need this; on the Pico it runs until power off."""
+        """Stop the DHT22 thread and the network. Only tests need this; on the Pico it runs until power off."""
         self._stop = True
+        if self.http is not None:
+            self.http.stop()
+            self.discovery.stop()
+
+    # ----- the network -----------------------------------------------------
+
+    def start_network(self):
+        """Switch Wi-Fi on. Takes about a second, so it is done before the watchdog starts."""
+        if self.wifi is None:
+            return
+        try:
+            if not self.wifi.networks:
+                print("No Wi-Fi network in secrets.py.")
+            self.wifi.start(time.ticks_ms())
+        except Exception as e:
+            self._error("WIFI", e)
+
+    def network_step(self, now):
+        """Keep Wi-Fi going and answer whatever is asked. Never waits."""
+        if self.wifi is None:
+            return
+        try:
+            self.wifi.step(now)
+            if self.wifi.changed:
+                # The Wi-Fi mode or address changed: the sockets must be opened again on the new network.
+                self.wifi.changed = False
+                self.http.stop()
+                self.discovery.stop()
+                if self.wifi.ip:
+                    self.http.start()
+                    self.discovery.start()
+                print("Network:", self.wifi.describe())
+                if self.wifi.last_error:
+                    print("[WIFI]", self.wifi.last_error)
+                    self.wifi.last_error = None
+            self.http.poll(now)
+            self.discovery.poll()
+        except Exception as e:
+            self._error("NET", e)
 
     def light_step(self, now):
         """Start a light measurement when one is due, and collect it a moment later. Never waits."""
@@ -250,10 +314,16 @@ class Station:
         try:
             oled.fill(0)
             oled.text("PICO METEO", 25, 0)
-            oled.text("Temp: " + fmt(p["temperature"], 1) + " C", 0, 10)
-            oled.text("Umid: " + fmt(p["humidity"], 0) + " %", 0, 20)
-            oled.text("Lux: " + fmt(p["light"], 0), 0, 30)
-            oled.text("Zgomot: " + fmt(p["sound"], 0) + "/100", 0, 40)
+            # A heartbeat: this character turns every update. A screen whose values look the same for
+            # minutes is thereby told apart from one that has frozen (the program stopped or hung).
+            oled.text(HEARTBEAT[self._beat % len(HEARTBEAT)], 120, 0)
+            self._beat += 1
+            oled.text("Temp: " + fmt(p["temperature"], 1) + " C", 0, 9)
+            oled.text("Umid: " + fmt(p["humidity"], 0) + " %", 0, 18)
+            oled.text("Lux: " + fmt(p["light"], 0), 0, 27)
+            oled.text("Zgomot: " + fmt(p["sound"], 0) + "/100", 0, 36)
+            if self.wifi is not None:
+                oled.text(self.wifi.describe(), 0, 45)
             missing = missing_letters(p)
             oled.text("Senzori: OK" if missing == "" else "Fara: " + missing, 0, 54)
             oled.show()
@@ -277,6 +347,8 @@ class Station:
             "peak=" + fmt(None if sound is None else sound[2], 1),
             "samples/s=" + str(self.meter.samples),
             "| missing:" + (missing_letters(p) or "-"),
+            "| net=" + (self.wifi.describe() if self.wifi is not None else "off"),
+            ("rssi=" + str(self.wifi.rssi())) if self.wifi is not None and self.wifi.rssi() is not None else "",
         )
 
     # ----- the main loop ---------------------------------------------------
@@ -286,6 +358,7 @@ class Station:
         n, sum_sq = self.sample_burst(config.MIC_BURST_US)
         now = time.ticks_ms()
         self.meter.add(n, sum_sq, now)
+        self.network_step(now)
 
         self.light_step(now)
         if age_ms(now, self._due["bmp"]) >= config.INTERVAL_BMP:
@@ -324,6 +397,7 @@ def run(max_loops=None):
     station = Station()
     station.boot_screen()
     station.start_background_jobs()
+    station.start_network()
 
     watchdog = None
     if config.USE_WATCHDOG:

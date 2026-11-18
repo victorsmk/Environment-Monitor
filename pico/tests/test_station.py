@@ -9,187 +9,23 @@ again when it comes back, and the light sensor is never waited for. Run from the
 import os
 import sys
 import time
-import types
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
 
-# ---- pretend MicroPython: the time functions the Pico has and a PC does not ----------------------
-_MASK = 0x3FFFFFFF
-_HALF = 0x20000000
-_T0 = time.monotonic()
-
-
-def _now_us():
-    return int((time.monotonic() - _T0) * 1_000_000)
-
-
-time.ticks_us = lambda: _now_us() & _MASK
-time.ticks_ms = lambda: (_now_us() // 1000) & _MASK
-time.ticks_add = lambda a, b: (a + b) & _MASK
-time.ticks_diff = lambda a, b: ((a - b + _HALF) & _MASK) - _HALF
-time.sleep_ms = lambda ms: time.sleep(ms / 1000)
-time.sleep_us = lambda us: time.sleep(us / 1_000_000)
-sys.print_exception = lambda e: print("(print_exception)", repr(e))
-
-
-# ---- pretend hardware ----------------------------------------------------------------------------
-class World:
-    """What the pretend hardware does. Tests change these."""
-
-    bmp_fails = False
-    dht_fails = False
-    light_fails = False
-    oled_fails = False
-    mic_swing = 800            # 16-bit units either side of the middle
-    events = []                # ("trigger" | "read", time)
-    wdt_feeds = 0
-    resets = 0
-    last_screen = {}
-
-    @classmethod
-    def reset(cls):
-        cls.bmp_fails = cls.dht_fails = cls.light_fails = cls.oled_fails = False
-        cls.mic_swing = 800
-        cls.events = []
-        cls.wdt_feeds = 0
-        cls.resets = 0
-        cls.last_screen = {}
-
-
-machine = types.ModuleType("machine")
-
-
-class Pin:
-    def __init__(self, *args, **kwargs):
-        pass
-
-
-class I2C:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def scan(self):
-        return [0x23]
-
-    def writeto(self, address, data):
-        if World.light_fails:
-            raise OSError(5, "EIO")
-        if bytes(data) == b"\x20":
-            World.events.append(("trigger", time.monotonic()))
-
-    def readfrom(self, address, count):
-        if World.light_fails:
-            raise OSError(5, "EIO")
-        World.events.append(("read", time.monotonic()))
-        return bytes([0x03, 0xE8])  # 1000 / 1.2 = 833.3 lux
-
-
-class ADC:
-    def __init__(self, pin):
-        self._flip = False
-
-    def read_u16(self):
-        self._flip = not self._flip
-        return 32768 + (World.mic_swing if self._flip else -World.mic_swing)
-
-
-class WDT:
-    def __init__(self, timeout=0):
-        self.timeout = timeout
-
-    def feed(self):
-        World.wdt_feeds += 1
-
-
-def _reset():
-    World.resets += 1
-
-
-machine.Pin, machine.I2C, machine.ADC, machine.WDT, machine.reset = Pin, I2C, ADC, WDT, _reset
-sys.modules["machine"] = machine
-
-dht = types.ModuleType("dht")
-
-
-class DHT22:
-    def __init__(self, pin):
-        pass
-
-    def measure(self):
-        if World.dht_fails:
-            raise OSError(110, "ETIMEDOUT")
-
-    def humidity(self):
-        return 48.2
-
-    def temperature(self):
-        return 21.4
-
-
-dht.DHT22 = DHT22
-sys.modules["dht"] = dht
-
-ssd1306 = types.ModuleType("ssd1306")
-
-
-class SSD1306_I2C:
-    def __init__(self, width, height, i2c):
-        if World.oled_fails:
-            raise OSError(5, "EIO")
-        self._lines = {}
-
-    def fill(self, colour):
-        self._lines = {}
-
-    def rect(self, *args):
-        pass
-
-    def text(self, text, x, y):
-        self._lines[y] = text
-
-    def show(self):
-        if World.oled_fails:
-            raise OSError(5, "EIO")
-        World.last_screen = dict(self._lines)
-
-
-ssd1306.SSD1306_I2C = SSD1306_I2C
-sys.modules["ssd1306"] = ssd1306
-
-bmp280 = types.ModuleType("bmp280")
-
-
-class BMP280:
-    def __init__(self, i2c):
-        if World.bmp_fails:
-            raise OSError(19, "ENODEV")
-
-    @property
-    def temperature(self):
-        if World.bmp_fails:
-            raise OSError(5, "EIO")
-        return 22.46
-
-    @property
-    def pressure(self):
-        if World.bmp_fails:
-            raise OSError(5, "EIO")
-        return 101324.9
-
-
-bmp280.BMP280 = BMP280
-sys.modules["bmp280"] = bmp280
+from fakes import World  # noqa: E402,F401  (puts the pretend hardware in place; must come before main)
 
 import config  # noqa: E402
 import main  # noqa: E402
+from logic import noise_level  # noqa: E402
 
 FAST = dict(
     INTERVAL_BMP=30, INTERVAL_DHT=30, INTERVAL_LIGHT=60, LIGHT_MEASURE_MS=40, INTERVAL_DISPLAY=30,
     INTERVAL_REPORT=1000, INTERVAL_REINIT=100,
     MAX_AGE_BMP=300, MAX_AGE_DHT=300, MAX_AGE_LIGHT=300, MAX_AGE_SOUND=600,
     MIC_BURST_US=5000, MIC_WINDOW_MS=40, MIC_REPORT_MS=200, MIC_MIN_WINDOW_SAMPLES=20,
-    USE_WATCHDOG=True,
+    USE_WATCHDOG=True, USE_NETWORK=False,
 )
 
 
@@ -241,9 +77,10 @@ class NormalOperation(StationTestCase):
         station = self.start()
         self.run_for(station, 1.0)
         p = self.payload(station)
-        # The pretend microphone swings 800 (16-bit units) either side: rms 800 -> level 30.
+        # The pretend microphone swings 800 (16-bit units) either side: rms 800, whatever the scale is.
         self.assertAlmostEqual(p["noise_rms"], 800, delta=40)
-        self.assertIn(p["sound"], range(27, 34))
+        expected = noise_level(800, config.NOISE_RMS_QUIET, config.NOISE_RMS_LOUD)
+        self.assertIn(p["sound"], range(expected - 3, expected + 4))
 
     def test_silence_reads_zero(self):
         World.mic_swing = 10
@@ -255,10 +92,10 @@ class NormalOperation(StationTestCase):
         station = self.start()
         self.run_for(station, 0.8)
         screen = World.last_screen
-        self.assertEqual(screen[10], "Temp: 22.5 C")
-        self.assertEqual(screen[20], "Umid: 48 %")
-        self.assertEqual(screen[30], "Lux: 833")
-        self.assertTrue(screen[40].startswith("Zgomot: "))
+        self.assertEqual(screen[9], "Temp: 22.5 C")
+        self.assertEqual(screen[18], "Umid: 48 %")
+        self.assertEqual(screen[27], "Lux: 833")
+        self.assertTrue(screen[36].startswith("Zgomot: "))
         self.assertEqual(screen[54], "Senzori: OK")
 
     def test_the_watchdog_is_fed_every_pass(self):
@@ -273,6 +110,34 @@ class NormalOperation(StationTestCase):
         config.USE_WATCHDOG = False
         self._stations.append(main.run(max_loops=5))
         self.assertEqual(World.wdt_feeds, 0)
+
+
+class TheHeartbeat(StationTestCase):
+    def test_a_character_in_the_corner_turns_with_every_update(self):
+        station = self.start()
+        self.run_for(station, 0.6)
+        beats = World.heartbeats
+        self.assertGreaterEqual(len(beats), 8)
+        self.assertEqual(set(beats), set("|/-\\"))
+        # The characters come in order, one step each time: | / - \ | / ...
+        order = "|/-\\"
+        for before, after in zip(beats, beats[1:]):
+            self.assertEqual(after, order[(order.index(before) + 1) % 4])
+
+    def test_the_text_lines_are_unaffected_by_the_heartbeat(self):
+        station = self.start()
+        self.run_for(station, 0.5)
+        self.assertEqual(World.last_screen[9], "Temp: 22.5 C")
+        self.assertEqual(World.last_screen[54], "Senzori: OK")
+
+    def test_the_heartbeat_stops_when_the_display_stops(self):
+        station = self.start()
+        self.run_for(station, 0.3)
+        World.oled_fails = True
+        self.run_for(station, 0.4)
+        count = len(World.heartbeats)
+        self.run_for(station, 0.3)
+        self.assertEqual(len(World.heartbeats), count)   # a broken display shows no heartbeat
 
 
 class TheDhtOnTheSecondCore(StationTestCase):
@@ -352,7 +217,7 @@ class WhenASensorFails(StationTestCase):
         self.assertIsNone(p["temperature_dht"])
         self.assertEqual(p["temperature"], 22.5)
         self.assertIsNotNone(p["light"])
-        self.assertEqual(World.last_screen[20], "Umid: -- %")
+        self.assertEqual(World.last_screen[18], "Umid: -- %")
         self.assertEqual(World.last_screen[54], "Fara: H")
 
     def test_one_failed_read_does_not_blank_the_value(self):
@@ -380,7 +245,7 @@ class WhenASensorFails(StationTestCase):
         self.run_for(station, 0.8)
         self.assertIsNone(station.bmp)                       # dropped after 5 failed reads
         self.assertIsNone(self.payload(station)["temperature"])
-        self.assertEqual(World.last_screen[10], "Temp: -- C")
+        self.assertEqual(World.last_screen[9], "Temp: -- C")
 
         World.bmp_fails = False
         self.run_for(station, 0.5)                           # INTERVAL_REINIT is 0.1 s

@@ -36,11 +36,29 @@ MIC_WINDOW_MS = 100            # RMS is worked out per 100 ms window
 MIC_REPORT_MS = 1000           # and the sound level is updated once a second
 MIC_MIN_WINDOW_SAMPLES = 100   # a window with fewer samples (the loop was busy) is not trusted
 
-# Sound level 0-100 from the loudest 100 ms window of the last second.
-# These two numbers are RMS values in 16-bit ADC units (the same units as the first version of the
-# program used). Calibrate them: QUIET = the room at its quietest, LOUD = a really loud room.
-NOISE_RMS_QUIET = 80
-NOISE_RMS_LOUD = 2500
+# Sound level 0-100 from the loudest 100 ms window of the last second, on a logarithmic scale (every
+# doubling of the sound adds the same number of points). These two numbers are RMS values in 16-bit ADC
+# units: QUIET = the loudest the quiet room gets (reads 0), LOUD = a sound that reads 100.
+# Measured on the real Pico (November 2026, peak of a 100 ms window): silence 75 (never above 92), normal
+# talking 127 (up to 164), loud voice or music 210 (up to 2700), shouting or hard claps 1200 (up to 2300).
+# The microphone is not very sensitive; turning up the gain trimmer on the MAX4466 board would help.
+NOISE_RMS_QUIET = 90
+NOISE_RMS_LOUD = 2000
+
+# --- Network (Wi-Fi, the /data page and finding the Pico) ------------------
+USE_NETWORK = True
+HOSTNAME = "pico-meteo"
+HTTP_PORT = 80                  # GET /data
+DISCOVERY_PORT = 4210           # UDP: the app asks "PICO?" and the Pico answers with its address
+HTTP_REQUEST_TIMEOUT_MS = 500   # a connection that sends nothing for this long is dropped
+
+WIFI_TRY_MS = 10000     # how long each known network gets before the next one is tried
+WIFI_LOST_MS = 5000     # a joined network that has been gone this long is treated as lost
+WIFI_KEEPALIVE_MS = 10000  # while joined, a tiny packet goes to the gateway this often (see wifi.py)
+AP_AFTER_MS = 30000     # if no known network connects within this, the Pico opens its own network
+AP_SSID = "PicoMeteo"   # ...with this name, at AP_ADDRESS. Needs AP_PASSWORD in secrets.py.
+AP_ADDRESS = "192.168.4.1"
+AP_RETRY_MS = 60000     # in its own network with nobody connected, a known network is tried again this often
 
 # --- Safety ---------------------------------------------------------------
 # The watchdog restarts the Pico if the program ever hangs for WATCHDOG_MS. It cannot be switched off

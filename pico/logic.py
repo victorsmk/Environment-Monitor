@@ -59,12 +59,18 @@ class Readings:
 
 
 def noise_level(rms, quiet, loud):
-    """0-100 from an RMS value: 0 at or below `quiet`, 100 at or above `loud`, a straight line between."""
+    """0-100 from an RMS value: 0 at or below `quiet`, 100 at or above `loud`.
+
+    Between the two the scale is logarithmic, like decibels and like hearing: every doubling of the
+    sound adds the same number of points. A straight line would squeeze a normal voice to almost zero
+    next to a shout (measured on the real microphone: a voice is about 50 above the quiet room, a shout
+    about 2000 above it).
+    """
     if rms is None or rms <= quiet:
         return 0
     if rms >= loud:
         return 100
-    return int((rms - quiet) / (loud - quiet) * 100 + 0.5)
+    return int(100 * math.log(rms / quiet) / math.log(loud / quiet) + 0.5)
 
 
 class NoiseMeter:

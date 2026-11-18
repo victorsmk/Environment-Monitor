@@ -33,3 +33,6 @@ pico/secrets.py
 # Python (Pico tests on a PC)
 __pycache__/
 *.pyc
+
+# Backup of the second Pico's old files (may contain Wi-Fi settings)
+pico_board2_backup/
