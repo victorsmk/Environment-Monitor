@@ -33,8 +33,8 @@ any screen.
 | 13 | Settings for the source, discovery | done |
 | 14 | Pico firmware, part 1: robustness, no Wi-Fi | done (running on the Pico) |
 | 15 | Pico firmware, part 2: networks and `GET /data` | |
-| 16 | Integration on real hardware (home, hotspot, own network) | |
-| 17 | Gaps in session results | |
+| 16 | Integration on real hardware (home, hotspot, own network) | in progress |
+| 17 | Gaps in session results | done |
 | 18 | Wrap-up | |
 
 ## Step 9: Contract and decisions (no app code)
@@ -136,3 +136,20 @@ any screen.
 - **Android may send traffic over mobile data** instead of a Wi-Fi network without internet, which
   is the reason for the network binding in step 12.
 - **Memory on the Pico** is tight with Wi-Fi plus the display driver; watch it in the one-hour test.
+
+## Progress notes for step 16 (real hardware)
+- Hotspot, cold start, discovery by the app, `/data`, automatic address update, watchdog restart: verified.
+- Sound level: logarithmic scale, calibrated with four guided recordings (to be repeated once at the end,
+  with the board in its final place).
+- Sensor failures: `pico/fault_test.py` injects failures on the real board, 9 of 9 checks passed. (The board is
+  on a PCB, so nothing can be pulled out; a physical unplug test was not done.)
+- Power from a plain charger (no PC): the Pico booted by itself, joined the hotspot and the app was live.
+- The Pico's own network (`PicoMeteo`, hotspot off): opened after about 30 s, the phone joined it, the app found
+  the Pico at 192.168.4.1 by itself, and the Pico returned to the hotspot by itself afterwards.
+- Home Wi-Fi as the second network: at boot with the hotspot off, and at runtime after the hotspot vanished,
+  the Pico moved to the home Wi-Fi and the app found it by itself (the router does not block the search).
+- Found and fixed with the real board: (1) the Wi-Fi chip does not notice a vanished access point by itself, so
+  a keep-alive connection to the gateway every 10 s was added (the Pico now notices within about 10 s);
+  (2) after moving between networks the old address was shown until the new one arrived, so the address is
+  read again while joined.
+- Still to do: repeat the sound calibration once at the end, with the board in its final place.
