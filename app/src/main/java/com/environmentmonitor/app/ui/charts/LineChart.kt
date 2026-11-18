@@ -113,10 +113,13 @@ fun LineChart(
     lineColor: Color,
     modifier: Modifier = Modifier,
     tooltip: ((TimedValue) -> ChartTooltip)? = null,
+    /** Two readings further apart than this have a gap between them: the line stops and the gap is shaded. */
+    gapMillis: Long = Long.MAX_VALUE,
 ) {
     val measurer = rememberTextMeasurer()
     val scheme = MaterialTheme.colorScheme
     val gridColor = scheme.outlineVariant
+    val gapColor = scheme.onSurface.copy(alpha = 0.08f)
     val axisStyle = TextStyle(fontSize = 11.sp, color = scheme.onSurfaceVariant)
     val bandStyle = TextStyle(fontSize = 10.sp, color = scheme.onSurfaceVariant.copy(alpha = 0.85f))
     val tipSmallStyle = TextStyle(fontSize = 11.sp, color = scheme.onSurfaceVariant)
@@ -134,7 +137,10 @@ fun LineChart(
     val latestFull by rememberUpdatedState(full)
     val latestView by rememberUpdatedState(view)
 
-    val drawn = remember(points, view) { downsample(visibleSlice(points, view), MAX_DRAWN_POINTS) }
+    // The readings in view, in stretches: a gap in the data ends one stretch and starts the next.
+    val stretches = remember(points, view, gapMillis) {
+        splitAtGaps(visibleSlice(points, view), gapMillis).map { downsample(it, MAX_DRAWN_POINTS) }
+    }
     val timeAxis = remember(view) {
         val offset = ZoneId.systemDefault().rules
             .getOffset(Instant.ofEpochMilli(view.start)).totalSeconds * 1_000L
@@ -259,26 +265,35 @@ fun LineChart(
                 drawText(layout, topLeft = Offset(labelX, bottom + 4.dp.toPx()))
             }
 
-            // The line, kept inside the plot when zoomed in.
+            // The line, kept inside the plot when zoomed in. Where the sensors were out of reach the line
+            // stops, and the gap is shaded so it cannot be mistaken for a flat stretch.
             clipRect(left, top, right, bottom) {
-                when {
-                    drawn.isEmpty() -> Unit
-                    drawn.size == 1 ->
-                        drawCircle(lineColor, 4.dp.toPx(), Offset(x(drawn[0].timestamp), y(drawn[0].value)))
-                    else -> {
-                        val path = Path().apply {
-                            moveTo(x(drawn[0].timestamp), y(drawn[0].value))
-                            for (i in 1 until drawn.size) lineTo(x(drawn[i].timestamp), y(drawn[i].value))
-                        }
-                        drawPath(
-                            path,
-                            lineColor,
-                            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
-                        )
-                        // Few points: mark each one, so a short stretch does not look like a smooth curve.
-                        if (drawn.size <= 40) {
-                            drawn.forEach {
-                                drawCircle(lineColor, 2.5.dp.toPx(), Offset(x(it.timestamp), y(it.value)))
+                stretches.zipWithNext().forEach { (before, after) ->
+                    val from = x(before.last().timestamp)
+                    val to = x(after.first().timestamp)
+                    drawRect(gapColor, Offset(from, top), Size(to - from, bottom - top))
+                }
+                // Few points: mark each one, so a short stretch does not look like a smooth curve.
+                val dotted = stretches.sumOf { it.size } <= 40
+                stretches.forEach { stretch ->
+                    when {
+                        stretch.isEmpty() -> Unit
+                        stretch.size == 1 ->
+                            drawCircle(lineColor, 4.dp.toPx(), Offset(x(stretch[0].timestamp), y(stretch[0].value)))
+                        else -> {
+                            val path = Path().apply {
+                                moveTo(x(stretch[0].timestamp), y(stretch[0].value))
+                                for (i in 1 until stretch.size) lineTo(x(stretch[i].timestamp), y(stretch[i].value))
+                            }
+                            drawPath(
+                                path,
+                                lineColor,
+                                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+                            )
+                            if (dotted) {
+                                stretch.forEach {
+                                    drawCircle(lineColor, 2.5.dp.toPx(), Offset(x(it.timestamp), y(it.value)))
+                                }
                             }
                         }
                     }
@@ -430,7 +445,13 @@ fun ChartLegend(color: Color, text: String, modifier: Modifier = Modifier) {
 
 /** The score over time, with Good, Fair and Poor zones shaded and named. */
 @Composable
-fun ScoreChart(points: List<TimedValue>, timeStart: Long, timeEnd: Long, modifier: Modifier = Modifier) {
+fun ScoreChart(
+    points: List<TimedValue>,
+    timeStart: Long,
+    timeEnd: Long,
+    modifier: Modifier = Modifier,
+    gapMillis: Long = Long.MAX_VALUE,
+) {
     val scheme = MaterialTheme.colorScheme
     val fair = ScoreLabel.FAIR_FROM.toFloat()
     val good = ScoreLabel.GOOD_FROM.toFloat()
@@ -446,6 +467,7 @@ fun ScoreChart(points: List<TimedValue>, timeStart: Long, timeEnd: Long, modifie
         ),
         lineColor = scheme.onSurface,
         modifier = modifier,
+        gapMillis = gapMillis,
         tooltip = { reading ->
             val score = reading.value.toInt()
             ChartTooltip(value = "Score $score", detail = ScoreLabel.of(score).text)
@@ -466,6 +488,7 @@ fun SensorChart(
     timeStart: Long,
     timeEnd: Long,
     modifier: Modifier = Modifier,
+    gapMillis: Long = Long.MAX_VALUE,
 ) {
     val color = sensor.color()
     val scheme = MaterialTheme.colorScheme
@@ -514,6 +537,7 @@ fun SensorChart(
             axis = axis,
             bands = bands,
             lineColor = color,
+            gapMillis = gapMillis,
             tooltip = { reading ->
                 val status = when (ScoringEngine.status(setting, reading.value)) {
                     RangeStatus.IN_RANGE -> "In range"

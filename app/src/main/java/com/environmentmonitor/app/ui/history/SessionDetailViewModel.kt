@@ -32,7 +32,7 @@ class SessionDetailViewModel(
     /** Scores and chart data worked out from the stored readings. Null until there is a reading. */
     val analysis: StateFlow<SessionAnalysis?> =
         combine(repository.observe(sessionId), readings.observe(sessionId)) { session, stored ->
-            session?.let { SessionAnalyzer.analyze(it.settings(), stored) }
+            session?.let { SessionAnalyzer.analyze(it.settings(), stored, it.recordingIntervalSeconds) }
         }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)

@@ -5,6 +5,14 @@ Move an item to the plan (see the status table in the README) when we pick it up
 
 ## Requests
 
+### On-device Compose UI tests fail on Android 17
+- The phone (Samsung Galaxy A54) now runs Android 17 (API 37). The Compose UI tests
+  (`LineChartGestureTest`, `AppIconsRenderTest`) fail there with
+  `NoSuchMethodException: android.hardware.input.InputManager.getInstance`: the Compose test library
+  (BOM 2026.02.01) calls a hidden Android function that Android 17 removed. The app itself and the other
+  on-device tests (database, migrations, Pico client) are not affected. Fix: update the Compose BOM and
+  the AndroidX test libraries to versions that support Android 17.
+
 ### Crowded time labels on the session charts
 - Seen on a Samsung Galaxy A54 (Android 16): the labels along the bottom of the charts run together
   ("9:56:00 PM9:56:30 PM9:57:00 PM") when a session is short, because the labels are in seconds and

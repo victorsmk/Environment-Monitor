@@ -200,4 +200,47 @@ class SessionAnalyzerTest {
     fun `no analysis when nothing could be scored`() {
         assertNull(SessionAnalyzer.analyze(sport, listOf(reading(0, null, null, null, sound = 40f))))
     }
+
+    // --- gaps: stretches with no readings at all ---
+
+    @Test
+    fun `a session with steady readings has no gaps`() {
+        val result = analyze(sleep, reading(0), reading(10_000), reading(20_000), reading(30_000))
+        assertTrue(result.gaps.isEmpty())
+    }
+
+    @Test
+    fun `a long silence between two readings is a gap`() {
+        val result = analyze(sleep, reading(0), reading(10_000), reading(3_600_000), reading(3_610_000))
+        assertEquals(listOf(DataGap(start = 10_000, end = 3_600_000)), result.gaps)
+        assertEquals(3_590_000L, result.gaps.single().durationMillis)
+    }
+
+    @Test
+    fun `the gap threshold follows the recording interval of the session`() {
+        val readings = listOf(reading(0), reading(60_000), reading(120_000))
+        // Every 10 seconds, a minute of silence is a gap; every 30 seconds it is not (the limit is 90 seconds).
+        assertEquals(2, SessionAnalyzer.analyze(sleep, readings, recordingIntervalSeconds = 10)!!.gaps.size)
+        assertTrue(SessionAnalyzer.analyze(sleep, readings, recordingIntervalSeconds = 30)!!.gaps.isEmpty())
+    }
+
+    @Test
+    fun `readings with a missing sensor are still readings, so they are not a gap`() {
+        val result = analyze(sleep, reading(0), reading(10_000, light = null), reading(20_000, light = null), reading(30_000))
+        assertTrue(result.gaps.isEmpty())
+    }
+
+    @Test
+    fun `a gap does not change the average score or the other statistics`() {
+        val withGap = analyze(sleep, reading(0), reading(10_000), reading(1_000_000), reading(1_010_000))
+        val without = analyze(sleep, reading(0), reading(10_000), reading(20_000), reading(30_000))
+        assertEquals(without.overall, withGap.overall)
+        assertEquals(without.sensors.map { it.inRangePercent }, withGap.sensors.map { it.inRangePercent })
+        assertEquals(4, withGap.readingCount)
+    }
+
+    @Test
+    fun `a session with a single reading has no gap`() {
+        assertTrue(analyze(sleep, reading(0)).gaps.isEmpty())
+    }
 }

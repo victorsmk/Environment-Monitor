@@ -1,5 +1,6 @@
 package com.environmentmonitor.app.ui
 
+import com.environmentmonitor.app.data.DataGap
 import com.environmentmonitor.app.data.Importance
 import com.environmentmonitor.app.data.Session
 import com.environmentmonitor.app.data.SensorType
@@ -16,6 +17,16 @@ fun formatDuration(millis: Long): String {
         minutes < 60 -> "$minutes min"
         else -> "${minutes / 60} h ${(minutes % 60).toString().padStart(2, '0')} min"
     }
+}
+
+/**
+ * "Sensors out of reach once, for 12 min." or "Sensors out of reach 3 times, 1 h 05 min in all."
+ * Null when there was no gap.
+ */
+fun List<DataGap>.gapSummary(): String? {
+    if (isEmpty()) return null
+    val total = formatDuration(sumOf { it.durationMillis })
+    return if (size == 1) "Sensors out of reach once, for $total." else "Sensors out of reach $size times, $total in all."
 }
 
 private val dateTimeFormat: DateTimeFormatter =

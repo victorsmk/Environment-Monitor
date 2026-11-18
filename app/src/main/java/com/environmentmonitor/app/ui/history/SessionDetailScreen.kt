@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.environmentmonitor.app.data.Importance
 import com.environmentmonitor.app.data.RecordingInterval
+import com.environmentmonitor.app.data.DataGaps
 import com.environmentmonitor.app.data.SensorStats
 import com.environmentmonitor.app.data.SensorType
 import com.environmentmonitor.app.data.Session
@@ -50,6 +51,7 @@ import com.environmentmonitor.app.ui.charts.ScoreChart
 import com.environmentmonitor.app.ui.charts.SensorChart
 import com.environmentmonitor.app.ui.formatDateTime
 import com.environmentmonitor.app.ui.formatDuration
+import com.environmentmonitor.app.ui.gapSummary
 import com.environmentmonitor.app.ui.formatRange
 import com.environmentmonitor.app.ui.formatValue
 import com.environmentmonitor.app.ui.headline
@@ -198,6 +200,8 @@ private fun ResultsSection(session: Session, analysis: SessionAnalysis?) {
 
     SummaryCard(analysis)
 
+    // A silence longer than this between two readings is a gap: the lines stop there.
+    val gapMillis = DataGaps.thresholdMillis(session.recordingIntervalSeconds)
     val first = analysis.scorePoints.first().timestamp
     val last = analysis.scorePoints.last().timestamp
     if (analysis.readingCount < 2) {
@@ -216,7 +220,7 @@ private fun ResultsSection(session: Session, analysis: SessionAnalysis?) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     ChartCard(title = "Score over time") {
-        ScoreChart(analysis.scorePoints, timeStart = first, timeEnd = last)
+        ScoreChart(analysis.scorePoints, timeStart = first, timeEnd = last, gapMillis = gapMillis)
     }
     analysis.sensors.forEach { stats ->
         ChartCard(title = stats.sensor.label, subtitle = stats.rangeSummary(), sensor = stats.sensor) {
@@ -226,6 +230,7 @@ private fun ResultsSection(session: Session, analysis: SessionAnalysis?) {
                 points = stats.points,
                 timeStart = first,
                 timeEnd = last,
+                gapMillis = gapMillis,
             )
         }
     }
@@ -256,6 +261,13 @@ private fun SummaryCard(analysis: SessionAnalysis) {
                 }
             }
             Text(analysis.headline(), style = MaterialTheme.typography.bodyLarge)
+            analysis.gaps.gapSummary()?.let { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             analysis.sensors.forEach { stats ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),

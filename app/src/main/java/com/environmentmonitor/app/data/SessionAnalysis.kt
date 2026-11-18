@@ -45,6 +45,8 @@ data class SessionAnalysis(
     val worst: SensorStats?,
     /** Sensors that count for this profile but never had a value during the whole session. */
     val noDataSensors: List<SensorType> = emptyList(),
+    /** Stretches with no readings at all (the sensors were out of reach), in time order. */
+    val gaps: List<DataGap> = emptyList(),
 )
 
 /** Works out a session's results from its stored readings and its settings snapshot. */
@@ -55,10 +57,15 @@ object SessionAnalyzer {
 
     /**
      * Returns null when there are no readings, when every sensor is Off, or when no reading had a
-     * value for any sensor that counts. A sensor with no value in a reading is left out of that
+     * value for any sensor that counts. Gaps (the sensors out of reach) are found from the spacing of the
+     * readings and [recordingIntervalSeconds]. A sensor with no value in a reading is left out of that
      * reading's score, and its own statistics use only the readings where it had one.
      */
-    fun analyze(settings: Map<SensorType, SensorSetting>, readings: List<Reading>): SessionAnalysis? {
+    fun analyze(
+        settings: Map<SensorType, SensorSetting>,
+        readings: List<Reading>,
+        recordingIntervalSeconds: Int = RecordingInterval.DEFAULT.seconds,
+    ): SessionAnalysis? {
         if (readings.isEmpty()) return null
         val scored = readings.mapNotNull { reading ->
             ScoringEngine.evaluate(settings, reading.toMeasurement())?.let { reading to it }
@@ -100,6 +107,7 @@ object SessionAnalyzer {
             worst = stats.maxByOrNull { it.averagePointsLost }
                 ?.takeIf { it.averagePointsLost >= WORST_THRESHOLD },
             noDataSensors = counted.filter { sensor -> stats.none { it.sensor == sensor } },
+            gaps = DataGaps.find(readings.map { it.timestamp }, DataGaps.thresholdMillis(recordingIntervalSeconds)),
         )
     }
 }

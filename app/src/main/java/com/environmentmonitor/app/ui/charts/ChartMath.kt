@@ -179,6 +179,20 @@ fun downsample(points: List<TimedValue>, maxPoints: Int): List<TimedValue> {
     }
 }
 
+/**
+ * Cuts [points] (in time order) into stretches wherever two neighbours are more than [maxGapMillis]
+ * apart, so a line can stop at a gap instead of running across it. No points gives no stretches.
+ */
+fun splitAtGaps(points: List<TimedValue>, maxGapMillis: Long): List<List<TimedValue>> {
+    if (points.isEmpty()) return emptyList()
+    val stretches = mutableListOf<MutableList<TimedValue>>(mutableListOf(points.first()))
+    for (i in 1 until points.size) {
+        if (points[i].timestamp - points[i - 1].timestamp > maxGapMillis) stretches += mutableListOf<TimedValue>()
+        stretches.last() += points[i]
+    }
+    return stretches
+}
+
 /** The stretch of time a chart currently shows. */
 data class TimeWindow(val start: Long, val end: Long) {
     val span: Long get() = end - start
