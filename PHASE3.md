@@ -55,8 +55,8 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
 
 | Step | What | State |
 |---|---|---|
-| 19 | The foreground service: manifest, permissions, notification channel, starts and stops with the session, a plain notification with a Stop button | |
-| 20 | The live notification: elapsed time, latest score, "No signal", updated about every 30 seconds; the text is plain tested Kotlin | |
+| 19 | The foreground service: manifest, permissions, notification channel, starts and stops with the session, a plain notification with a Stop button | done |
+| 20 | The live notification: elapsed time, latest score, "No signal", updated about every 30 seconds; the text is plain tested Kotlin | done |
 | 21 | Notification permission flow (Android 13+) when the first session starts | |
 | 22 | Locks: partial wake lock and Wi-Fi lock while recording, released with the session | |
 | 23 | Settings, "Background recording": notification and battery-optimisation status and shortcuts | |

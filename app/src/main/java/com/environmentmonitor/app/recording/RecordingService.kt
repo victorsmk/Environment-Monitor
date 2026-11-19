@@ -18,7 +18,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import com.environmentmonitor.app.data.Measurement
+import com.environmentmonitor.app.data.ScoringEngine
+import com.environmentmonitor.app.sensors.ConnectionState
 
 /**
  * Keeps the app alive while a session records, with an ongoing notification. It does not record
@@ -40,7 +46,7 @@ class RecordingService : Service() {
         createChannel()
         startForeground(
             NOTIFICATION_ID,
-            notification(current),
+            notification(current, RecordingText.text(current, System.currentTimeMillis(), null, ConnectionState.CONNECTING)),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
         )
         if (intent?.action == ACTION_STOP) {
@@ -52,14 +58,27 @@ class RecordingService : Service() {
         }
         if (watching == null) {
             watching = scope.launch {
-                container.sessionRepository.activeSession.collect { session ->
+                var latest: Measurement? = null
+                launch { container.sensorSource.measurements.collect { latest = it } }
+                // The text is refreshed twice a minute and whenever the connection changes, so the
+                // notification does not wake the phone for nothing.
+                val ticker = flow { while (true) { emit(Unit); delay(REFRESH_MILLIS) } }
+                combine(
+                    container.sessionRepository.activeSession,
+                    container.sensorSource.connection,
+                    ticker,
+                ) { session, connection, _ -> session to connection }.collect { (session, connection) ->
                     current = session
                     if (session == null) {
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
                     } else {
+                        val score = latest
+                            ?.takeIf { connection == ConnectionState.CONNECTED }
+                            ?.let { ScoringEngine.evaluate(session.settings(), it) }
+                        val text = RecordingText.text(session, System.currentTimeMillis(), score, connection)
                         getSystemService(NotificationManager::class.java)
-                            .notify(NOTIFICATION_ID, notification(session))
+                            .notify(NOTIFICATION_ID, notification(session, text))
                     }
                 }
             }
@@ -83,7 +102,7 @@ class RecordingService : Service() {
         )
     }
 
-    private fun notification(session: Session?): Notification {
+    private fun notification(session: Session?, text: String): Notification {
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -95,7 +114,7 @@ class RecordingService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(RecordingText.title(session))
-            .setContentText(RecordingText.text(session))
+            .setContentText(text)
             .setContentIntent(open)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -108,6 +127,7 @@ class RecordingService : Service() {
     companion object {
         private const val CHANNEL_ID = "recording"
         private const val NOTIFICATION_ID = 1
+        private const val REFRESH_MILLIS = 30_000L
         private const val ACTION_STOP = "com.environmentmonitor.app.STOP_SESSION"
 
         /** Starts the service. Must be called while the app is visible (Android forbids it otherwise). */
