@@ -143,10 +143,12 @@ units, the same ones the first version used). Between them the scale is logarith
 doubling of the sound adds the same number of points. Read `peak` on the console in the quietest room
 you will use and for a loud sound, and put those two numbers there.
 
-Measured on the real Pico (the peak of a 100 ms window): silence 75 (never above 92), normal talking 127
-(up to 164), a loud voice or music 210 (up to 2700), shouting or hard claps about 1200 (up to 2300). The
-values in `config.py` (quiet 90, loud 2000) come from these. The microphone is not very sensitive: turning
-up the gain trimmer on the MAX4466 board would make quiet sounds stand out more from the noise floor.
+Measured on the real Pico in its final place (the peak of a 100 ms window, median and highest): silence 79
+(93), normal talking 340 (460), a loud voice or music 1300 (3200), shouting or hard claps 2600 (10300). The
+values in `config.py` (quiet 95, loud 8000) come from these. The same recording made the day before, with the
+board on a desk, gave about 2.7 times lower numbers, so **repeat this recording whenever the board or the
+microphone is moved**: the recording is four guided levels of 15 seconds (silence, normal talking, loud,
+very loud) read from the `peak` field of the console.
 
 ## Tests on a PC
 

@@ -39,11 +39,12 @@ MIC_MIN_WINDOW_SAMPLES = 100   # a window with fewer samples (the loop was busy)
 # Sound level 0-100 from the loudest 100 ms window of the last second, on a logarithmic scale (every
 # doubling of the sound adds the same number of points). These two numbers are RMS values in 16-bit ADC
 # units: QUIET = the loudest the quiet room gets (reads 0), LOUD = a sound that reads 100.
-# Measured on the real Pico (November 2026, peak of a 100 ms window): silence 75 (never above 92), normal
-# talking 127 (up to 164), loud voice or music 210 (up to 2700), shouting or hard claps 1200 (up to 2300).
-# The microphone is not very sensitive; turning up the gain trimmer on the MAX4466 board would help.
-NOISE_RMS_QUIET = 90
-NOISE_RMS_LOUD = 2000
+# Measured on the real Pico in its final place (November 2026, peak of a 100 ms window, median and highest):
+# silence 79 (93), normal talking 340 (460), a loud voice or music 1300 (3200), shouting or hard claps 2600
+# (10300). The microphone hears about 2.7 times more here than it did on the desk the day before, which is why
+# this is measured with the board where it stays. Normal talking reads about 29, a shout about 75-100.
+NOISE_RMS_QUIET = 95
+NOISE_RMS_LOUD = 8000
 
 # --- Network (Wi-Fi, the /data page and finding the Pico) ------------------
 USE_NETWORK = True
