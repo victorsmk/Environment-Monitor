@@ -141,5 +141,9 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
   service and the wake lock were all still there at the 3 and 6 minute checks.
 - The planned 12 + 12 minute run (screen off, then forced Doze on a simulated battery) was stopped early
   because the user had to leave; the phone's power state was put back to normal.
-- **Still to do:** forced Doze on a simulated battery, the hotspot switched off and on while the app is in
-  the background, a real reboot, and the real night.
+- **Forced Doze on a simulated battery:** 12 minutes with the screen off, the battery faked as unplugged and
+  deep idle forced (`dumpsys deviceidle force-idle`, state stayed IDLE). The process, the foreground service
+  and the wake lock were there at every 3 minute check, and the session got 75 readings with the longest gap
+  10.06 s (the 10 s interval): Doze did not cost a single reading.
+- **Still to do:** the hotspot switched off and on while the app is in the background, a real reboot, and the
+  real night.
