@@ -4,8 +4,9 @@ An Android app that rates how good a room is for what you plan to do in it (slee
 sport, ...). A Raspberry Pi Pico W with temperature, humidity, light and sound sensors feeds it live
 readings over Wi-Fi.
 
-**Status:** phases 1 and 2 are complete: the app works on demo data or on the real Pico W weather station.
-Phase 3 (recording in the background) is next. Open ideas and questions are in [BACKLOG.md](BACKLOG.md).
+**Status:** phases 1 to 3 are done: the app works on demo data or on the real Pico W weather station, and a
+session keeps recording in the background (foreground service). Two things from phase 3 still wait for a hand
+test: a real phone restart and a full night (see [PHASE3.md](PHASE3.md)). Open ideas and questions are in [BACKLOG.md](BACKLOG.md).
 
 | Step | What | State |
 |---|---|---|
@@ -34,7 +35,18 @@ Phase 2, the real Pico W (plan and findings in [PHASE2.md](PHASE2.md), data form
 | 17 | Gaps in session results | done |
 | 18 | Wrap-up | done |
 
-Later: **phase 3**, record in the background with a foreground service (see the end of PHASE2.md).
+Phase 3, record in the background (plan, decisions and findings in [PHASE3.md](PHASE3.md)):
+
+| Step | What | State |
+|---|---|---|
+| 19 | The foreground service and its notification | done |
+| 20 | Live notification text (time, score, "No signal") | done |
+| 21 | Notification permission (Android 13+) | done |
+| 22 | Wake lock and Wi-Fi lock while recording | done |
+| 23 | Settings, "Background recording" | done |
+| 24 | Recovery (restart after a kill or an update) | done |
+| 25 | Device tests (screen off, kill, Doze, Wi-Fi loss) | done, except a real reboot and a real night |
+| 26 | Wrap-up | done |
 
 ## The Pico W weather station
 
@@ -261,6 +273,7 @@ app/src/androidTest/   database, migration and Pico client tests, Compose UI tes
 pico/                  MicroPython firmware of the weather station, its tools and its tests (pico/README.md)
 docs/                  the data format between the Pico and the app (pico-protocol.md)
 PHASE2.md              the plan, decisions and findings of phase 2
+PHASE3.md              the plan, decisions and findings of phase 3 (background recording)
 ```
 
 Architecture in one line: Compose screens → ViewModels → repositories → Room database and the
@@ -274,19 +287,25 @@ Each step is committed and tagged, so you can look at or return to any milestone
 git tag                      # list milestones
 git checkout lab-crud        # the CRUD milestone (profiles + sessions)
 git checkout phase-2         # phase 2 complete: the real Pico W
+git checkout phase-3         # phase 3: background recording
 git checkout main            # back to the latest
 ```
 
-Phase 2 has a tag per step (`phase2-step-9` to `phase2-step-17`) and `phase-2` for the whole.
+Phase 2 has a tag per step (`phase2-step-9` to `phase2-step-17`) and `phase-2` for the whole. Phase 3 has
+`phase3-step-19` to `phase3-step-26` and `phase-3`.
 
 ## Known limitations
 
 - The database is at version 7. Migrations 4 to 5, 5 to 6 and 6 to 7 keep all data, but older versions have
   none: the database is wiped when it is that old (`fallbackToDestructiveMigration` in `AppContainer.kt`).
   Remove that before a real release, and write a migration for every schema change from now on.
-- Recording only works while the app process is alive. If Android closes the app, recording pauses
-  until it is opened again (background recording is phase 3). Time with no readings shows up as a gap in the
-  session results.
+- Background recording uses a foreground service with a notification (keep notifications allowed, and set the
+  app to "Don't optimise" under battery, both shown in Settings). It survived the screen off, the app swiped
+  away, the process killed (restarted in 3 s), forced Doze and the Wi-Fi lost for 90 s on the Galaxy A54.
+  Keep the phone on a charger overnight. Time with no readings shows up as a gap in the session results.
+- Not yet tried by hand: the phone restarting during a session (the session should resume after the PIN is
+  entered; if not, it resumes when the app is opened), the Pico joined to the phone hotspot, and a full
+  8 hour night. A force-stopped app records nothing until it is opened again (Android's rule).
 - The mock sensors produce one new value per second, so recording every second can occasionally store
   the same value twice. The real Pico updates the same way (about once a second).
 - The Pico talks plain HTTP with no password, so it is meant for a trusted network. The phone app is the only

@@ -61,8 +61,8 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
 | 22 | Locks: partial wake lock and Wi-Fi lock while recording, released with the session | done |
 | 23 | Settings, "Background recording": notification and battery-optimisation status and shortcuts | done |
 | 24 | Recovery: the service restarts itself after Android kills it (sticky), the app resumes it when opened, and an optional restart after the phone reboots | done, the real reboot is still to be tried by hand |
-| 25 | Hardware and device tests: screen off, app swiped away, the process killed on purpose, Doze (charging and not), hotspot switched off and on in the background; then a real night | |
-| 26 | Wrap-up: README, notes, tags | |
+| 25 | Hardware and device tests: screen off, app swiped away, the process killed on purpose, Doze (charging and not), hotspot switched off and on in the background; then a real night | mostly done: a real reboot, the Pico on the hotspot and the real night are still to be tried by hand |
+| 26 | Wrap-up: README, notes, tags | done |
 
 ### Step 19: the foreground service
 - `recording/RecordingService.kt`, `recording/RecordingNotification.kt` (channel, builder), manifest entries.
