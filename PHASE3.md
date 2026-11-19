@@ -145,5 +145,8 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
   deep idle forced (`dumpsys deviceidle force-idle`, state stayed IDLE). The process, the foreground service
   and the wake lock were there at every 3 minute check, and the session got 75 readings with the longest gap
   10.06 s (the 10 s interval): Doze did not cost a single reading.
-- **Still to do:** the hotspot switched off and on while the app is in the background, a real reboot, and the
-  real night.
+- **Network lost and back, app in the background:** adb cannot switch the real hotspot, and the Pico was on the
+  home Wi-Fi, so the phone's own Wi-Fi was switched off for 90 s (screen off) and on again instead. The
+  service stayed up, there was a single gap of 95.5 s in the readings, and the first reading came 8 s after
+  Wi-Fi returned. The real hotspot case (Pico joined to the hotspot) is still to be seen by hand.
+- **Still to do:** a real reboot, the Pico on the hotspot, and the real night.
