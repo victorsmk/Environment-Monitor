@@ -1,6 +1,7 @@
 package com.environmentmonitor.app.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 /** Create, read, update and delete for monitoring sessions. */
 class SessionRepository(
@@ -13,6 +14,9 @@ class SessionRepository(
 
     /** The running session, or null when nothing is recording. */
     val activeSession: Flow<Session?> = dao.observeActive()
+
+    /** The id of the running session, or null. */
+    suspend fun activeId(): Long? = activeSession.first()?.id
 
     fun observe(id: Long): Flow<Session?> = dao.observe(id)
 
