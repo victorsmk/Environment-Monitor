@@ -60,7 +60,7 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
 | 21 | Notification permission flow (Android 13+) when the first session starts | done |
 | 22 | Locks: partial wake lock and Wi-Fi lock while recording, released with the session | done |
 | 23 | Settings, "Background recording": notification and battery-optimisation status and shortcuts | done |
-| 24 | Recovery: the service restarts itself after Android kills it (sticky), the app resumes it when opened, and an optional restart after the phone reboots | |
+| 24 | Recovery: the service restarts itself after Android kills it (sticky), the app resumes it when opened, and an optional restart after the phone reboots | done, the real reboot is still to be tried by hand |
 | 25 | Hardware and device tests: screen off, app swiped away, the process killed on purpose, Doze (charging and not), hotspot switched off and on in the background; then a real night | |
 | 26 | Wrap-up: README, notes, tags | |
 
@@ -119,3 +119,17 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
   start rules are therefore tested on the phone early (step 19), before building on them.
 - **The Pico's Wi-Fi.** A hotspot on the phone may switch itself off after a while without clients, or when
   the phone sleeps; the Pico already finds its way back, but readings are lost meanwhile.
+
+## Findings in step 24 (Galaxy A54, Android 17)
+
+- **Killed by force:** the app process was killed with `kill -9` during a session. Android restarted the
+  service by itself within 3 seconds, with a new process, the notification and both locks, and readings
+  resumed. The seconds in between show as a gap in the results.
+- **App updated while recording:** the receiver restarted the service with nobody opening the app (log line
+  "Resumed the recording service after MY_PACKAGE_REPLACED").
+- **Reboot:** not tried. adb may not send the system's boot message, and after a restart the phone needs
+  the PIN before any app can run. To try it by hand: start a session, restart the phone, unlock it, and see
+  whether the notification appears without opening the app (the log tag is `ResumeReceiver`). If Android
+  refuses, the session resumes when the app is opened.
+- A force-stopped app (Settings, Force stop) receives no broadcasts at all until the user opens it again;
+  that is Android's rule and cannot be worked around.
