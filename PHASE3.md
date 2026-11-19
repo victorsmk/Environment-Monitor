@@ -60,8 +60,8 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
 | 21 | Notification permission flow (Android 13+) when the first session starts | done |
 | 22 | Locks: partial wake lock and Wi-Fi lock while recording, released with the session | done |
 | 23 | Settings, "Background recording": notification and battery-optimisation status and shortcuts | done |
-| 24 | Recovery: the service restarts itself after Android kills it (sticky), the app resumes it when opened, and an optional restart after the phone reboots | done, the real reboot is still to be tried by hand |
-| 25 | Hardware and device tests: screen off, app swiped away, the process killed on purpose, Doze (charging and not), hotspot switched off and on in the background; then a real night | mostly done: a real reboot, the Pico on the hotspot and the real night are still to be tried by hand |
+| 24 | Recovery: the service restarts itself after Android kills it (sticky), the app resumes it when opened, and an optional restart after the phone reboots | done, the real reboot was tried in step 25 and works |
+| 25 | Hardware and device tests: screen off, app swiped away, the process killed on purpose, Doze (charging and not), hotspot switched off and on in the background; then a real night | mostly done: the Pico on the hotspot and the real night are still to be tried by hand |
 | 26 | Wrap-up: README, notes, tags | done |
 
 ### Step 19: the foreground service
@@ -149,4 +149,9 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
   home Wi-Fi, so the phone's own Wi-Fi was switched off for 90 s (screen off) and on again instead. The
   service stayed up, there was a single gap of 95.5 s in the readings, and the first reading came 8 s after
   Wi-Fi returned. The real hotspot case (Pico joined to the hotspot) is still to be seen by hand.
-- **Still to do:** a real reboot, the Pico on the hotspot, and the real night.
+- **Real reboot (`adb reboot` during a session, then the PIN):** Android allowed the service to start from
+  `BOOT_COMPLETED` (log: "Background started FGS: Allowed"), `ResumeReceiver` logged the resume, and the
+  service, notification, wake lock and Wi-Fi lock came back with nobody opening the app. The session had a
+  single gap of 115 s (the restart and the wait for the PIN); readings then went on. Reboot is therefore a
+  supported case, not just a fallback.
+- **Still to do:** the Pico on the hotspot, and the real night.

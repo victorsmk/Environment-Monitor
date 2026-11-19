@@ -6,7 +6,7 @@ readings over Wi-Fi.
 
 **Status:** phases 1 to 3 are done: the app works on demo data or on the real Pico W weather station, and a
 session keeps recording in the background (foreground service). Two things from phase 3 still wait for a hand
-test: a real phone restart and a full night (see [PHASE3.md](PHASE3.md)). Open ideas and questions are in [BACKLOG.md](BACKLOG.md).
+test: the Pico on the phone hotspot and a full night (see [PHASE3.md](PHASE3.md)). Open ideas and questions are in [BACKLOG.md](BACKLOG.md).
 
 | Step | What | State |
 |---|---|---|
@@ -45,7 +45,7 @@ Phase 3, record in the background (plan, decisions and findings in [PHASE3.md](P
 | 22 | Wake lock and Wi-Fi lock while recording | done |
 | 23 | Settings, "Background recording" | done |
 | 24 | Recovery (restart after a kill or an update) | done |
-| 25 | Device tests (screen off, kill, Doze, Wi-Fi loss) | done, except a real reboot and a real night |
+| 25 | Device tests (screen off, kill, Doze, Wi-Fi loss) | done, except the Pico on the hotspot and a real night |
 | 26 | Wrap-up | done |
 
 ## The Pico W weather station
@@ -301,11 +301,10 @@ Phase 2 has a tag per step (`phase2-step-9` to `phase2-step-17`) and `phase-2` f
   Remove that before a real release, and write a migration for every schema change from now on.
 - Background recording uses a foreground service with a notification (keep notifications allowed, and set the
   app to "Don't optimise" under battery, both shown in Settings). It survived the screen off, the app swiped
-  away, the process killed (restarted in 3 s), forced Doze and the Wi-Fi lost for 90 s on the Galaxy A54.
+  away, the process killed (restarted in 3 s), forced Doze, the Wi-Fi lost for 90 s and a phone restart
+  (the session resumes by itself once the PIN is entered) on the Galaxy A54.
   Keep the phone on a charger overnight. Time with no readings shows up as a gap in the session results.
-- Not yet tried by hand: the phone restarting during a session (the session should resume after the PIN is
-  entered; if not, it resumes when the app is opened), the Pico joined to the phone hotspot, and a full
-  8 hour night. A force-stopped app records nothing until it is opened again (Android's rule).
+- Not yet tried by hand: the Pico joined to the phone hotspot, and a full 8 hour night. A force-stopped app records nothing until it is opened again (Android's rule).
 - The mock sensors produce one new value per second, so recording every second can occasionally store
   the same value twice. The real Pico updates the same way (about once a second).
 - The Pico talks plain HTTP with no password, so it is meant for a trusted network. The phone app is the only
