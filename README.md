@@ -1,11 +1,11 @@
 # Environment Monitor
 
 An Android app that rates how good a room is for what you plan to do in it (sleep, office work,
-sport, ...). A Raspberry Pi Pico W with temperature, humidity, light and sound sensors will feed it
-live readings.
+sport, ...). A Raspberry Pi Pico W with temperature, humidity, light and sound sensors feeds it live
+readings over Wi-Fi.
 
-**Status:** phase 1 (the app, running on mock sensor values) is complete. Open ideas and questions
-are in [BACKLOG.md](BACKLOG.md).
+**Status:** phases 1 and 2 are complete: the app works on demo data or on the real Pico W weather station.
+Phase 3 (recording in the background) is next. Open ideas and questions are in [BACKLOG.md](BACKLOG.md).
 
 | Step | What | State |
 |---|---|---|
@@ -18,9 +18,39 @@ are in [BACKLOG.md](BACKLOG.md).
 | 7 | Session results and charts | done |
 | 8 | Settings (how often to record, demo data) and polish | done |
 
-Later phases: **2** connect the real Pico W over Wi-Fi (plan in [PHASE2.md](PHASE2.md), data format
-in [docs/pico-protocol.md](docs/pico-protocol.md), the Pico firmware in `pico/`, see [pico/README.md](pico/README.md)), **3** record in
-the background with a foreground service.
+Phase 2, the real Pico W (plan and findings in [PHASE2.md](PHASE2.md), data format in
+[docs/pico-protocol.md](docs/pico-protocol.md), firmware in [pico/](pico/README.md)):
+
+| Step | What | State |
+|---|---|---|
+| 9 | Contract and decisions (HTTP, JSON format, networks) | done |
+| 10 | Connection state in the app | done |
+| 11 | Missing sensor values (a failed sensor does not ruin a session) | done |
+| 12 | The Pico client (`PicoSensorSource`, HTTP) | done |
+| 13 | Settings for the source, address, discovery | done |
+| 14 | Pico firmware: robustness (microphone, light sensor, DHT22, watchdog) | done |
+| 15 | Pico firmware: Wi-Fi networks, `GET /data`, discovery | done |
+| 16 | Integration on real hardware (hotspot, own network, home Wi-Fi, power bank, fault test, calibration) | done |
+| 17 | Gaps in session results | done |
+| 18 | Wrap-up | done |
+
+Later: **phase 3**, record in the background with a foreground service (see the end of PHASE2.md).
+
+## The Pico W weather station
+
+A Raspberry Pi Pico W with a BMP280 (temperature, pressure), a DHT22 (humidity), a BH1750 (light) and a
+MAX4466 microphone (sound level), and an OLED display. It joins a Wi-Fi network, and the app asks it for
+its readings about once a second (`GET /data`, JSON, see [docs/pico-protocol.md](docs/pico-protocol.md)).
+
+- **Three ways to connect, tried in this order by the Pico:** the phone's hotspot (the school setup: the phone
+  keeps its mobile data), your home Wi-Fi, and, when neither is found, a network of its own (`PicoMeteo`).
+  The networks are listed in `pico/secrets.py`, which is never committed.
+- **The app finds the Pico by itself:** *Find Pico* in Settings, and automatically whenever the signal is
+  lost and the Pico's address has changed (a hotspot hands out a new one each time).
+- **Safe by design:** a sensor that fails shows `--` and does not spoil the rest; the Pico restarts itself if it
+  ever hangs (watchdog); a vanished network is noticed within about 10 seconds.
+- Wiring, putting the firmware on a new board, calibration and the checks to run are in
+  [pico/README.md](pico/README.md).
 
 ## What the app does
 
@@ -177,14 +207,23 @@ the same Wi-Fi.
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 .\gradlew.bat testDebugUnitTest          # unit tests, no device needed
 .\gradlew.bat connectedDebugAndroidTest  # on-device tests, needs an emulator or phone
+python -m unittest discover -s pico/tests  # the Pico firmware, on a PC (Python 3 only)
 ```
+
+The Pico tests (about 150) run the firmware logic and the whole program against pretend hardware, the Wi-Fi
+state machine, and the HTTP server and discovery over real sockets on the PC. `pico/fault_test.py` is the
+version of that which runs on the real board.
 
 Unit tests cover the scoring engine, the session analysis behind the results, the chart maths
 (including tap lookup, zoom and pan), the mock sensor model, the recorder (on virtual time, so a
 "10 second" interval takes no real time), validation and formatting. The on-device tests run
 create / read / update / delete against a real in-memory Room database, including readings and the
-cascade delete from sessions, and a Compose UI test really pinches, taps and drags a chart.
-HTML reports are written to `app/build/reports/`.
+cascade delete from sessions, the Pico client against a small server, and a Compose UI test really
+pinches, taps and drags a chart. HTML reports are written to `app/build/reports/`.
+
+Known problem: on **Android 17** the two Compose UI tests (the chart gestures and the icon drawing) fail with
+`NoSuchMethodException: InputManager.getInstance`, because the Compose test library of this project calls a
+function Android 17 removed. The other on-device tests are fine. See BACKLOG.md.
 
 Note: `connectedDebugAndroidTest` uninstalls the app when it finishes, which also deletes the
 app's data on that device (your profiles and sessions). To run the same tests and keep the data,
@@ -196,9 +235,13 @@ install the test APK next to the app and run it directly:
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" shell am instrument -w com.environmentmonitor.app.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-## Using the mock sensors
+## Demo data or the real Pico
 
-Until the real device is connected, readings come from a simulator. In **Settings → Demo data**,
+In **Settings → Sensors** choose *Demo data* (made-up readings, no hardware needed) or *Raspberry Pi Pico W*.
+The choice is locked while a session records. For the Pico, press *Find Pico* (or type its address) and
+*Test connection*.
+
+With demo data, readings come from a simulator. In **Settings → Demo data**,
 you can choose the pretend room: *Comfortable bedroom*, *Quiet office*, *Noisy room*,
 *Hot and bright*, or *Changing* (cycles through all four). Values glide towards the room's target, so
 a change takes about 20 seconds to settle.
@@ -208,13 +251,16 @@ a change takes about 20 seconds to settle.
 ```
 app/src/main/java/com/environmentmonitor/app/
   data/        Room entities, DAOs, repositories, scoring engine, validation
-  sensors/     SensorSource interface, the mock implementation, the Pico W client (not switched on in
-               the app yet) and the SessionRecorder
+  sensors/     SensorSource interface, the mock implementation, the Pico W client and discovery,
+               the source switch, and the SessionRecorder
   ui/          Compose screens: dashboard/, profiles/, history/, settings/, charts/, theme/, navigation
   AppContainer.kt   hand-wired dependencies (no DI framework)
   AppSettings.kt    small preferences (selected profile, recording interval, demo scenario)
 app/src/test/          unit tests
-app/src/androidTest/   database tests
+app/src/androidTest/   database, migration and Pico client tests, Compose UI tests
+pico/                  MicroPython firmware of the weather station, its tools and its tests (pico/README.md)
+docs/                  the data format between the Pico and the app (pico-protocol.md)
+PHASE2.md              the plan, decisions and findings of phase 2
 ```
 
 Architecture in one line: Compose screens → ViewModels → repositories → Room database and the
@@ -227,21 +273,30 @@ Each step is committed and tagged, so you can look at or return to any milestone
 ```powershell
 git tag                      # list milestones
 git checkout lab-crud        # the CRUD milestone (profiles + sessions)
+git checkout phase-2         # phase 2 complete: the real Pico W
 git checkout main            # back to the latest
 ```
 
+Phase 2 has a tag per step (`phase2-step-9` to `phase2-step-17`) and `phase-2` for the whole.
+
 ## Known limitations
 
-- Moving from database version 4 to 5 (the drawn icons) keeps all data through a real migration, but
-  older versions have none: the database is wiped when it is that old
-  (`fallbackToDestructiveMigration` in `AppContainer.kt`). Remove that before a real release, and
-  write a migration for every schema change from now on.
+- The database is at version 7. Migrations 4 to 5, 5 to 6 and 6 to 7 keep all data, but older versions have
+  none: the database is wiped when it is that old (`fallbackToDestructiveMigration` in `AppContainer.kt`).
+  Remove that before a real release, and write a migration for every schema change from now on.
 - Recording only works while the app process is alive. If Android closes the app, recording pauses
-  until it is opened again (background recording is phase 3).
+  until it is opened again (background recording is phase 3). Time with no readings shows up as a gap in the
+  session results.
 - The mock sensors produce one new value per second, so recording every second can occasionally store
-  the same value twice. A real device will not have this limit.
-- Tested on an Android 17 emulator and on a Samsung Galaxy A54 (Android 16). Other devices have not
-  been tried.
+  the same value twice. The real Pico updates the same way (about once a second).
+- The Pico talks plain HTTP with no password, so it is meant for a trusted network. The phone app is the only
+  client it expects; its own network (`PicoMeteo`) is protected by the `AP_PASSWORD` in `pico/secrets.py`.
+- Only 2.4 GHz Wi-Fi works (a Pico limitation), and the phone hotspot must be set to 2.4 GHz.
+- The sound level is a relative 0 to 100 scale (not decibels), calibrated for the microphone's place: repeat
+  the calibration in pico/README.md whenever the board or microphone is moved.
+- The Compose UI tests fail on Android 17 (see "Run the tests").
+- Tested on a Samsung Galaxy A54 (Android 16, then Android 17), an Android 17 emulator, and a Raspberry Pi
+  Pico W with MicroPython 1.28.0. Other devices have not been tried.
 
 ## Troubleshooting
 

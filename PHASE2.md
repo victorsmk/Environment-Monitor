@@ -33,9 +33,9 @@ any screen.
 | 13 | Settings for the source, discovery | done |
 | 14 | Pico firmware, part 1: robustness, no Wi-Fi | done (running on the Pico) |
 | 15 | Pico firmware, part 2: networks and `GET /data` | |
-| 16 | Integration on real hardware (home, hotspot, own network) | in progress |
+| 16 | Integration on real hardware (home, hotspot, own network) | done |
 | 17 | Gaps in session results | done |
-| 18 | Wrap-up | |
+| 18 | Wrap-up | done |
 
 ## Step 9: Contract and decisions (no app code)
 - `docs/pico-protocol.md`, the Pico code moved into `pico/`, a Wi-Fi settings template.
@@ -153,3 +153,31 @@ any screen.
   (2) after moving between networks the old address was shown until the new one arrived, so the address is
   read again while joined.
 - Still to do: repeat the sound calibration once at the end, with the board in its final place.
+
+## Phase 2 is complete
+
+Everything above was checked on a real Pico W (MicroPython 1.28.0) and a Samsung Galaxy A54: cold start, power
+from a charger, the phone hotspot, the Pico's own network, home Wi-Fi as a second network, the app finding the
+Pico on all three by itself, a sensor-failure test on the real board, and the sound calibration with the board
+in its final place. The first Pico died during the work (its USB side stopped working; cause not found) and
+was replaced by a second one, which is why `pico/deploy.py` and the notes for a replacement board exist.
+
+What was learned the hard way:
+- The Wi-Fi chip does not notice by itself that its access point has gone; the Pico sends a keep-alive
+  connection to the gateway every 10 s so that it does.
+- After moving between networks the old address stays until the new one arrives; the address is read again.
+- The DHT22 library waits 270 ms for every reading, so it runs on the Pico's second core.
+- A watchdog restart is the Pico's normal recovery: copying files to a running Pico resets it 8 s later unless
+  the watchdog is kept fed (`deploy.py` does that).
+
+## What carries into phase 3 (background recording)
+
+- Move the recorder and the sensor source out of the app process's lifetime into a **foreground service** with
+  an ongoing notification (needs the `FOREGROUND_SERVICE` permission and a service type, and
+  `POST_NOTIFICATIONS` on Android 13 and newer).
+- After the process is killed or the phone restarts, find the running session in the database and resume it,
+  reconnecting to the Pico (the address finder already follows a moved Pico).
+- Ask for the battery-optimisation exemption and test on Samsung, which stops background work aggressively.
+- Before a real release: remove `fallbackToDestructiveMigration`, decide `allowBackup`, and update the Compose
+  test libraries for Android 17.
+- Optional: let the Pico keep readings while the phone is away and hand them over later.
