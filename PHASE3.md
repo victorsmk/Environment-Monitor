@@ -133,3 +133,13 @@ Steps continue the numbering. Each step ends in a commit and a tag (`phase3-step
   refuses, the session resumes when the app is opened.
 - A force-stopped app (Settings, Force stop) receives no broadcasts at all until the user opens it again;
   that is Android's rule and cannot be worked around.
+
+## Findings in step 25 (so far; Galaxy A54, Android 17, real Pico over home Wi-Fi)
+
+- **Screen off, on the charger:** 7.4 minutes with the app swiped away and the screen off gave 45 readings
+  with the longest gap 10.04 s, which is the 10 s interval: nothing was lost. The process, the foreground
+  service and the wake lock were all still there at the 3 and 6 minute checks.
+- The planned 12 + 12 minute run (screen off, then forced Doze on a simulated battery) was stopped early
+  because the user had to leave; the phone's power state was put back to normal.
+- **Still to do:** forced Doze on a simulated battery, the hotspot switched off and on while the app is in
+  the background, a real reboot, and the real night.
