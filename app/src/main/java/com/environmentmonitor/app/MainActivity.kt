@@ -1,5 +1,11 @@
 package com.environmentmonitor.app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.environmentmonitor.app.recording.NotificationPermission
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -21,17 +27,33 @@ import com.environmentmonitor.app.ui.AppRoot
 import com.environmentmonitor.app.ui.theme.EnvironmentMonitorTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val askForNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* a refusal is fine */ }
+
+    private fun askForNotificationsOnce(settings: AppSettings) {
+        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (NotificationPermission.shouldAsk(Build.VERSION.SDK_INT, granted, settings.notificationPermissionAsked)) {
+            settings.notificationPermissionAsked = true
+            askForNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         // While the app is visible and a session runs, make sure the recording service is up. This
         // covers a session just started and opening the app with one already running.
-        val sessions = (application as EnvironmentMonitorApplication).container.sessionRepository
+        val container = (application as EnvironmentMonitorApplication).container
+        val sessions = container.sessionRepository
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 sessions.activeSession.map { it != null }.distinctUntilChanged().collect { running ->
-                    if (running) RecordingService.start(this@MainActivity)
+                    if (running) {
+                        RecordingService.start(this@MainActivity)
+                        askForNotificationsOnce(container.settings)
+                    }
                 }
             }
         }

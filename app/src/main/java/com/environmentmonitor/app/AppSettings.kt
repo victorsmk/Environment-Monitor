@@ -103,7 +103,13 @@ class AppSettings(context: Context) {
         _recordingInterval.value = interval
     }
 
+    /** True once the notification permission has been asked for, so the question is not repeated. */
+    var notificationPermissionAsked: Boolean
+        get() = prefs.getBoolean(KEY_NOTIFICATION_ASKED, false)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIFICATION_ASKED, value).apply()
+
     private companion object {
+        const val KEY_NOTIFICATION_ASKED = "notification_permission_asked"
         const val KEY_THEME = "theme_mode"
         const val KEY_INTERVAL = "recording_interval"
         const val KEY_PROFILE = "selected_profile_id"
