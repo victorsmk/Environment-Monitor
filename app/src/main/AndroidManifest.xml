@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Without it Android 13+ hides the recording notification (asked at run time, step 21). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 

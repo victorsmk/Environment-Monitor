@@ -36,6 +36,7 @@ class RecordingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var watching: Job? = null
     private var current: Session? = null
+    private val locks by lazy { RecordingLocks(this) }
 
     private val container get() = (application as EnvironmentMonitorApplication).container
 
@@ -44,6 +45,7 @@ class RecordingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Android gives only a few seconds to show the notification, so it comes first.
         createChannel()
+        locks.hold()
         startForeground(
             NOTIFICATION_ID,
             notification(current, RecordingText.text(current, System.currentTimeMillis(), null, ConnectionState.CONNECTING)),
@@ -70,9 +72,11 @@ class RecordingService : Service() {
                 ) { session, connection, _ -> session to connection }.collect { (session, connection) ->
                     current = session
                     if (session == null) {
+                        locks.release()
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
                     } else {
+                        locks.hold()
                         val score = latest
                             ?.takeIf { connection == ConnectionState.CONNECTED }
                             ?.let { ScoringEngine.evaluate(session.settings(), it) }
@@ -87,6 +91,7 @@ class RecordingService : Service() {
     }
 
     override fun onDestroy() {
+        locks.release()
         scope.cancel()
         super.onDestroy()
     }
