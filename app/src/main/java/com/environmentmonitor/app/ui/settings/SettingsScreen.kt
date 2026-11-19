@@ -131,6 +131,14 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             }
 
             SettingsSection(
+                title = "Background recording",
+                note = "A session keeps recording with the screen off and the app closed. Keep the " +
+                    "phone on a charger overnight.",
+            ) {
+                BackgroundRecordingControls()
+            }
+
+            SettingsSection(
                 title = "Demo data",
                 note = "Made-up readings, used while Demo data is selected under Sensors. " +
                     "Pick the kind of room they pretend to be in. The values glide there over " +
