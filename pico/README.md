@@ -2,7 +2,7 @@
 
 MicroPython program for the Raspberry Pi Pico W weather station. It measures temperature and pressure
 (BMP280), humidity (DHT22), light (BH1750) and sound level (MAX4466), shows them on the OLED and
-prints them on the serial console. Phase 2 step 15 adds Wi-Fi and the `GET /data` endpoint described in
+prints them on the serial console. It also joins Wi-Fi and serves the readings at `GET /data`, described in
 [docs/pico-protocol.md](../docs/pico-protocol.md).
 
 ## Files
@@ -21,7 +21,7 @@ prints them on the serial console. Phase 2 step 15 adds Wi-Fi and the `GET /data
 | `tests/` | Tests that run on a PC | no |
 
 The display library `ssd1306` is not part of this folder: `deploy.py` installs it from the MicroPython
-package index. The old `bh1750.py` is no longer used (`lightsensor.py` replaces it).
+package index.
 
 ### Wi-Fi settings (`secrets.py`)
 
@@ -83,7 +83,7 @@ sound in 16-bit ADC units, `samples/s` how many microphone samples were counted 
 `missing` the sensors with no value (`T`, `H`, `L`, `S`, or `-` for none). The OLED shows `--` for a
 missing value and `Fara: ...` on its last line.
 
-## Checking it on the real Pico (step 14)
+## Checking it on the real Pico
 
 Measured on the real Pico W (MicroPython v1.28.0): 3 and 4 minutes of running with the watchdog on, no
 restarts, no errors, no value missing. What to expect:

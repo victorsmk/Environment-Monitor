@@ -1,7 +1,7 @@
 # Pico W protocol (version 1)
 
-How the Android app gets readings from the Raspberry Pi Pico W. Status: **agreed in step 9** of
-[PHASE2.md](../PHASE2.md) (decisions A to D below).
+How the Android app gets readings from the Raspberry Pi Pico W. Status: version 1, in use by the app and
+the firmware (decisions A to D below).
 
 ## Overview
 
